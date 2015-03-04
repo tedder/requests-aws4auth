@@ -9,7 +9,7 @@ Because Amazon hasn't made the licensing conditions clear for this it's not
 included in this source, but it is free to download.
 
 Download the testsuite zip from here:
-http://docs.aws.amazon.com/general/latest/gr/samples/aws4_testsuite.zip'
+http://docs.aws.amazon.com/general/latest/gr/samples/aws4_testsuite.zip
 
 Unzip the suite to a folder called aws4_testsuite in this test directory. You
 can use another folder but you'll need to update the path in
