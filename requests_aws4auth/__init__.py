@@ -1,7 +1,6 @@
+"""
 requests-aws4auth
 =================
-
-Amazon Web Services version 4 authentication for the Python requests module.
 
 requests-aws4auth is a authentication module for the [requests][1] Python
 library which provides version 4 authentication for the Amazon Web Services
@@ -14,7 +13,7 @@ requests-aws4auth is MIT Licensed.
 
 Features
 --------
-* Authentication for all AWS [regions][3] and [services][2]
+* Basic authentication for all AWS [regions][3] and [services][2]
 * Generation of signing keys with full credential scope customisation
 
 [3]: http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
@@ -103,4 +102,7 @@ Unsupported AWS features / todo
 * Currently does not support Amazon S3 chunked uploads.
 * Requires requests library to be present even if only using AWS4SigningKey.
 
+"""
+from .aws4auth import AWS4Auth
+del aws4auth
 
