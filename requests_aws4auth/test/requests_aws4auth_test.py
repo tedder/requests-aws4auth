@@ -119,7 +119,7 @@ class AmzAws4TestSuite:
                 filepath = os.path.join(path, item)
                 file_ext = os.path.splitext(item)[1]
                 if PY2:
-                    with open(filepath) as f:
+                    with open(filepath, 'U') as f:
                         content = unicode(f.read(), encoding='utf-8')
                 else:
                     with open(filepath, encoding='utf-8') as f:
