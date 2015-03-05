@@ -31,6 +31,7 @@ import hashlib
 import itertools
 import requests
 from datetime import datetime
+from errno import ENOENT
 
 try:
     from urllib.parse import urlparse
@@ -98,15 +99,14 @@ class AmzAws4TestSuite:
             }
 
         """
+        errmsg = ('Test Suite directory not found. Download the test suite'
+                  'from here: http://docs.aws.amazon.com/general/latest/gr/'
+                  'samples/aws4_testsuite.zip')
         if not os.path.exists(path):
-            raise ValueError('Test Suite directory not found. Download the '
-                             'test suite from here: http://docs.aws.amazon.com'
-                             '/general/latest/gr/samples/aws4_testsuite.zip')
+            raise IOError(ENOENT, errmsg)
         files = sorted(os.listdir(path))
         if not files:
-            raise ValueError('Test Suite directory empty. Download the test '
-                             'suite from here: http://docs.aws.amazon.com/ge'
-                             'neral/latest/gr/samples/aws4_testsuite.zip')
+            raise IOError(ENOENT, errmsg)
         grouped = itertools.groupby(files, lambda x: os.path.splitext(x)[0])
         data = {}
         for group_name, items in grouped:
@@ -125,8 +125,11 @@ class AmzAws4TestSuite:
         return data
 try:
     amz_aws4_testsuite = AmzAws4TestSuite()
-except ValueError:
-    amz_aws4_testsuite = None
+except IOError as e:
+    if e.errno == ENOENT:
+        amz_aws4_testsuite = None
+    else:
+        raise e
 
 
 def request_from_text(text):
