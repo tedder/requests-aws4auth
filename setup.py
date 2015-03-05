@@ -7,13 +7,13 @@ with open('README.rst', 'r', 'utf-8') as f:
 setup(
     name = 'requests-aws4auth',
     packages = ['requests-aws4auth'],
-    version = '0.2',
+    version = '0.3',
     description = 'Amazon Web Services version 4 authentication for the Python requests module',
     long_description = readme,
     author = 'Sam Washington',
     author_email = 'samwashington@aethris.net',
     url = 'https://github.com/sam-washington/requests-aws4auth',
-    download_url = 'https://github.com/sam-washington/requests-aws4auth/tarball/0.2',
+    download_url = 'https://github.com/sam-washington/requests-aws4auth/tarball/0.3',
     license = 'MIT License',
     keywords = ['requests', 'auth', 'authentication', 'amazon', 'amazon web services' 'aws' 's3', 'amazon s3', 'web', 'REST', 'REST API', 'HTTP'],
     classifiers = [
