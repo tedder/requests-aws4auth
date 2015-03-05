@@ -5,10 +5,10 @@ with open('README.rst', 'r', 'utf-8') as f:
     readme = f.read()
 
 setup(
-    name = 'requests-aws3auth',
+    name = 'requests-aws4auth',
     packages = ['requests-aws4auth'],
     version = '0.2',
-    description = 'Amazon Web Services version 4 authentication for the Python requests module'
+    description = 'Amazon Web Services version 4 authentication for the Python requests module',
     long_description = readme,
     author = 'Sam Washington',
     author_email = 'samwashington@aethris.net',

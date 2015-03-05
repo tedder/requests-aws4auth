@@ -42,9 +42,9 @@ Install via pip:
 
 .. code-block:: bash
 
-    $ pip install aws4auth-requests
+    $ pip install requests-aws4auth
 
-aws4auth-requests requires the `requests`_ library by Kenneth Reitz.
+requests-aws4auth requires the `requests`_ library by Kenneth Reitz.
 
 AWS4Auth objects
 ----------------
