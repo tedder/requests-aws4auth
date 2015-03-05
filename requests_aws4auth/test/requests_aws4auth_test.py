@@ -189,8 +189,8 @@ class AWS4_SigningKey_Test(unittest.TestCase):
     def test_sign_sha256_unicode_msg(self):
         key = b'The quick brown fox jumps over the lazy dog'
         msg = ('Forsaking monastic tradition, twelve jovial friars gave up '
-              'their vocation for a questionable existence on the flying '
-              'trapeze')
+               'their vocation for a questionable existence on the flying '
+               'trapeze')
         expected = [250, 103, 254, 220, 118, 118, 37, 81, 166, 41, 65, 14,
                     142, 77, 204, 122, 185, 19, 38, 15, 145, 249, 113, 69,
                     178, 30, 131, 244, 230, 190, 246, 23]
@@ -475,7 +475,7 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
         sreq = auth(req, timestamp=timestamp)
         signature = sreq.headers['Authorization'].split('=')[3]
         expected = ('ced6826de92d2bdeed8f846f0bf508e8559e98e4b0199114b84c541'
-                   '74deb456c')
+                    '74deb456c')
         self.assertEqual(signature, expected)
 
     @unittest.skipIf(amz_aws4_testsuite is None, 'aws4_testsuite unavailable,'
