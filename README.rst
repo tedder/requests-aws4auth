@@ -23,7 +23,7 @@ Features
 
 Basic usage
 -----------
-::
+.. code-block:: python
 
     >>> import requests
     >>> from requests_aws4auth import AWS4Auth
@@ -38,7 +38,9 @@ service.
 
 Installation
 ------------
-Install via pip::
+Install via pip:
+
+.. code-block:: bash
 
     $ pip install aws4auth-requests
 
@@ -47,11 +49,15 @@ aws4auth-requests requires the `requests`_ library by Kenneth Reitz.
 AWS4Auth objects
 ----------------
 Instances can be created by supplying scope parameters directly or by
-using a pre-generated signing key::
+using a pre-generated signing key:
+
+.. code-block:: python
 
     >>> auth = AWS4Auth(access_id, access_key, region, service)
 
-or::
+or:
+
+.. code-block:: python
 
     >>> auth = AWSAuth(access_id, signing_key)
 
@@ -75,7 +81,9 @@ You can reuse AWS4Auth instances to authenticate as many requests as you need.
 AWS4SigningKey objects
 ----------------------
 Used to create a signing key which can be distributed to provide scoped access
-to AWS resources::
+to AWS resources:
+
+.. code-block:: python
 
     >>> from requests_aws4auth.aws4signingkey import AWS4SigningKey
     >>> AWS4SigningKey(access_key, region, service[, date])
