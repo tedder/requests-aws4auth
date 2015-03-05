@@ -110,6 +110,10 @@ class AmzAws4TestSuite:
         grouped = itertools.groupby(files, lambda x: os.path.splitext(x)[0])
         data = {}
         for group_name, items in grouped:
+            if group_name == 'get-header-value-multiline':
+                # skipping this test as it is incomplete as supplied in the
+                # test suite
+                continue
             group = {}
             for item in items:
                 filepath = os.path.join(path, item)
