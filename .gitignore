@@ -39,6 +39,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+requests_aws4auth/test/aws4_testsuite/
 
 # Translations
 *.mo
