@@ -1,6 +1,7 @@
 import os
 import io
 import codecs
+import re
 from distutils.core import setup
 
 
@@ -24,18 +25,19 @@ def find_version(*file_paths):
 with codecs.open('README.rst', 'r', 'utf-8') as f:
     readme = f.read()
 
+version = find_version('requests_aws4auth', '__init__.py')
 
 setup(
     name='requests-aws4auth',
     packages=['requests_aws4auth'],
-    version=find_version('requests_aws4', '__init__.py'),
-    description='AWS4 authentication for requests',
+    version=version,
+    description='AWS4 authentication for Requests',
     long_description=readme,
     author='Sam Washington',
-    author_email='samwashington@aethris.net',
+    author_email='codegreen@aethris.net',
     url='https://github.com/sam-washington/requests-aws4auth',
     download_url=('https://github.com/sam-washington/'
-                  'requests-aws4auth/tarball/0.3'),
+                  'requests-aws4auth/tarball/' + version),
     license='MIT License',
     keywords=['requests', 'auth', 'authentication', 'amazon',
               'amazon web services' 'aws' 's3', 'amazon s3', 'web', 'REST',
