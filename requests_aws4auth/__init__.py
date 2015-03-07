@@ -18,9 +18,9 @@ CloudTrail, CloudWatch Monitoring, CloudWatch Logs, CodeDeploy, Cognito
 Identity, Cognito Sync, Config, DataPipeline, Direct Connect, DynamoDB, Elastic
 Beanstalk, ElastiCache, EC2, EC2 Container Service, Elastic Load Balancing,
 Elastic MapReduce, Elastic Transcoder, Glacier, Identity and Access Management
-(IAM), Key Management Service, Kinesis, Lambda, Opsworks, Redshift, Relational
-Database Service (RDS), Route 53, Simple Storage Service (S3), Simple
-Notification Service (SNS), Simple Queue Service (SQS), Storage Gateway,
+(IAM), Key Management Service (KMS), Kinesis, Lambda, Opsworks, Redshift,
+Relational Database Service (RDS), Route 53, Simple Storage Service (S3),
+Simple Notification Service (SNS), Simple Queue Service (SQS), Storage Gateway,
 Security Token Service (STS)
 
 The following services do not support AWS auth version 4 and are not usable
@@ -123,7 +123,7 @@ A test suite is included in the test folder.
 
 The package passes all tests in the AWS auth v4 `test suite`_, and contains
 tests against the supported live services. See docstrings in
-test/requests_aws4auth_test.py for details about running the tests.
+``test/requests_aws4auth_test.py`` for details about running the tests.
 
 Connection parameters are included in the tests for the AWS Support API, should
 you have access and want to try it. The documentation says it supports auth v4

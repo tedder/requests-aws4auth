@@ -7,7 +7,7 @@ requests-aws4auth
 .. image:: https://img.shields.io/pypi/l/requests-aws4auth.svg
         :target: https://pypi.python.org/pypi/requests-aws4auth
 
-Amazon Web Services version 4 authentication for the Python Requests_
+Amazon Web Services version 4 authentication for the Python `Requests`_
 library.
 
 .. _Requests: https://github.com/kennethreitz/requests
@@ -26,9 +26,9 @@ CloudTrail, CloudWatch Monitoring, CloudWatch Logs, CodeDeploy, Cognito
 Identity, Cognito Sync, Config, DataPipeline, Direct Connect, DynamoDB, Elastic
 Beanstalk, ElastiCache, EC2, EC2 Container Service, Elastic Load Balancing,
 Elastic MapReduce, Elastic Transcoder, Glacier, Identity and Access Management
-(IAM), Key Management Service, Kinesis, Lambda, Opsworks, Redshift, Relational
-Database Service (RDS), Route 53, Simple Storage Service (S3), Simple
-Notification Service (SNS), Simple Queue Service (SQS), Storage Gateway,
+(IAM), Key Management Service (KMS), Kinesis, Lambda, Opsworks, Redshift,
+Relational Database Service (RDS), Route 53, Simple Storage Service (S3),
+Simple Notification Service (SNS), Simple Queue Service (SQS), Storage Gateway,
 Security Token Service (STS)
 
 The following services do not support AWS auth version 4 and are not usable
@@ -47,7 +47,7 @@ Install via pip:
 
     $ pip install requests-aws4auth
 
-requests-aws4auth requires the Requests_ library by Kenneth Reitz.
+requests-aws4auth requires the `Requests`_ library by Kenneth Reitz.
 
 requests-aws4auth is tested on Python 2.7 and 3.2 and up.
 
@@ -120,7 +120,7 @@ Once instantiated the key string itself is stored in the object's ``key``
 attribute. The ``access_key`` is not stored in the object.
 
 Multi-threading / processing
--------------------------
+----------------------------
 ``AWS4Auth`` and ``AWS4SigningKey`` instances should be fine to share across
 multiple threads and processes so long as threads/processes don't mess with the
 internal variables.
@@ -129,15 +129,15 @@ Testing
 -------
 A test suite is included in the test folder. 
 
-The package passes all tests in the AWS auth v4 `test suite`_, and contains
+The package passes all tests in the AWS auth v4 `test_suite`_, and contains
 tests against the supported live services. See docstrings in 
-test/requests_aws4auth_test.py for details about running the tests.
+``test/requests_aws4auth_test.py`` for details about running the tests.
 
 Connection parameters are included in the tests for the AWS Support API, should
 you have access and want to try it. The documentation says it supports auth v4
 so it should work if you have a subscription. Do pass on your results!
 
-.. _test suite: http://docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html
+.. _test_suite: http://docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html
 
 Unsupported AWS features / todo
 -------------------------------
