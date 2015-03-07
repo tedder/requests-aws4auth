@@ -39,6 +39,18 @@ SimpleDB, DevPay, Mechanical Turk
 
 The AWS Support API has not been tested as it requires a premium subscription.
 
+Installation
+------------
+Install via pip:
+
+.. code-block:: bash
+
+    $ pip install requests-aws4auth
+
+requests-aws4auth requires the Requests_ library by Kenneth Reitz.
+
+requests-aws4auth is tested on Python 2.7 and 3.2 and up.
+
 Basic usage
 -----------
 .. code-block:: python
@@ -53,18 +65,6 @@ Basic usage
 
 This example would list your buckets in the ``eu-west-1`` region of the Amazon
 S3 service.
-
-Installation
-------------
-Install via pip:
-
-.. code-block:: bash
-
-    $ pip install requests-aws4auth
-
-requests-aws4auth requires the Requests_ library by Kenneth Reitz.
-
-requests-aws4auth is tested on Python 2.7 and 3.2 and up.
 
 ``AWS4Auth`` objects
 --------------------
