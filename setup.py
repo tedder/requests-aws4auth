@@ -2,12 +2,13 @@ import io
 import codecs
 from distutils.core import setup
 
-# def read(*names)
-#     with io.open(
-#         os.path.join(os.path.dirname(__file__), *names),
-#         encoding='utf-8')
-#     ) as f:
-#         return f.read()
+
+def read(*names):
+    with io.open(
+        os.path.join(os.path.dirname(__file__), *names),
+        encoding='utf-8')
+    ) as f:
+        return f.read()
 
 
 def find_version(*file_paths):
@@ -37,7 +38,7 @@ setup(
     license='MIT License',
     keywords=['requests', 'auth', 'authentication', 'amazon',
               'amazon web services' 'aws' 's3', 'amazon s3', 'web', 'REST',
-              'REST API', 'HTTP'],
+              'REST API'],
     install_requires=['requests'],
     classifiers=[
         'Development Status :: 3 - Alpha',
@@ -48,6 +49,7 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Topic :: Internet :: WWW/HTTP'])
