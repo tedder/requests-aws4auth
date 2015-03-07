@@ -1,3 +1,4 @@
+import os
 import io
 import codecs
 from distutils.core import setup
@@ -6,7 +7,7 @@ from distutils.core import setup
 def read(*names):
     with io.open(
         os.path.join(os.path.dirname(__file__), *names),
-        encoding='utf-8')
+        encoding='utf-8'
     ) as f:
         return f.read()
 
