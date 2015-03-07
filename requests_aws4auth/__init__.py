@@ -144,4 +144,4 @@ from .aws4signingkey import AWS4SigningKey
 del aws4auth
 del aws4signingkey
 
-__version__ = '0.4rc1'
+__version__ = '0.4rc3'
