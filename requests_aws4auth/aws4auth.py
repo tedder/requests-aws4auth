@@ -1,6 +1,6 @@
 """
 Provides AWS4Auth class for handling Amazon Web Services version 4
-authentication with the requests module.
+authentication with the Requests module.
 
 """
 
@@ -26,9 +26,20 @@ from .aws4signingkey import AWS4SigningKey
 
 class AWS4Auth(AuthBase):
     """
-    requests authentication class for providing AWS version 4 authentication
-    for HTTP requests. Provides basic authentication for all regions and
-    services listed at http://docs.aws.amazon.com/general/latest/gr/rande.html
+    Requests authentication class for providing AWS version 4 authentication
+    for HTTP requests.
+
+    Provides basic authentication for regions and services listed at:
+    http://docs.aws.amazon.com/general/latest/gr/rande.html
+
+    The following services do not support AWS auth version 4 and are not usable
+    with this package:
+        * Simple Email Service (SES)' - AWS auth v3 only
+        * Simple Workflow Service - AWS auth v3 only
+        * Import/Export - AWS auth v2 only
+        * SimpleDB - AWS auth V2 only
+        * DevPay - AWS auth v1 only
+        * Mechanical Turk - has own signing mechanism
 
     You can reuse AWS4Auth instances to sign as many requests as you need.
 
@@ -72,7 +83,7 @@ class AWS4Auth(AuthBase):
                       endpoints at:
                       http://docs.aws.amazon.com/general/latest/gr/rande.html
                       e.g. elasticbeanstalk.
-        signing_key - A signing key as created by AWS4SigningKey.
+        signing_key - An AWS4SigningKey instance.
 
         All arguments should be supplied as strings.
 
@@ -83,13 +94,13 @@ class AWS4Auth(AuthBase):
             raise TypeError(msg)
         self.access_id = args[0]
         if isinstance(args[1], AWS4SigningKey) and len(args) == 2:
-            # instantiating from signing key
+            # instantiate from signing key
             key = args[1]
             self.region = key.region
             self.service = key.service
             self.signing_key = key
         elif len(args) == 4:
-            # instantiating from args
+            # instantiate from args
             access_key = args[1]
             self.region = args[2]
             self.service = args[3]
@@ -106,16 +117,16 @@ class AWS4Auth(AuthBase):
 
     def __call__(self, req):
         """
-        Interface used by requests module to apply authentication to HTTP
+        Interface used by Requests module to apply authentication to HTTP
         requests.
 
-        Add x-amz-date, x-amz-content-sha256 and Authorization headers to the
-        request.
+        Add x-amz-content-sha256 and Authorization headers to the request. Add
+        x-amz-date header to request if not already present.
 
         If request body is not already encoded to bytes, encode to charset
         specified in Content-Type header, or UTF-8 if not specified.
 
-        req -- requests PreparedRequest object
+        req -- Requests PreparedRequest object
 
         """
         if hasattr(req, 'body') and req.body is not None:
@@ -154,7 +165,7 @@ class AWS4Auth(AuthBase):
         then add charset to content-type. Modifies req directly, does not
         return a modified copy.
 
-        req: requests PreparedRequest object
+        req -- Requests PreparedRequest object
 
         """
         if isinstance(req.body, text_type):
@@ -177,7 +188,7 @@ class AWS4Auth(AuthBase):
         """
         Create the AWS authentication Canonical Request string.
 
-        req            -- requests PreparedRequest object. Should already
+        req            -- Requests PreparedRequest object. Should already
                           include an x-amz-content-sha256 header
         cano_headers   -- Canonical Headers section of Canonical Request, as
                           returned by get_canonical_headers()
@@ -187,6 +198,8 @@ class AWS4Auth(AuthBase):
         """
         url = urlparse(req.url)
         path = cls.amz_cano_path(url.path)
+        # AWS handles "extreme" querystrings differently to urlparse
+        # (see post-vanilla-query-nonunreserved test in aws_testsuite)
         split = req.url.split('?', 1)
         qs = split[1] if len(split) == 2 else ''
         qs = cls.amz_cano_querystring(qs)
@@ -201,9 +214,10 @@ class AWS4Auth(AuthBase):
         """
         Generate the Canonical Headers section of the Canonical Request.
 
-        Return the Canonical Headers and the Signed Headers as a tuple.
+        Return the Canonical Headers and the Signed Headers strs as a tuple
+        (canonical_headers, signed_headers).
 
-        req     -- requests PreparedRequest object
+        req     -- Requests PreparedRequest object
         include -- List of headers to include in the canonical and signed
                    headers. By default it includes all headers, which is fine
                    for AWS. It's primarily included to allow testing against
@@ -231,7 +245,7 @@ class AWS4Auth(AuthBase):
             if hdr in include or '*' in include:
                 vals = cano_headers_dict.setdefault(hdr, [])
                 vals.append(val)
-        # flatten cano_headers dict to string
+        # Flatten cano_headers dict to string and generate signed_headers
         cano_headers = ''
         signed_headers_list = []
         for hdr in sorted(cano_headers_dict):
@@ -247,7 +261,7 @@ class AWS4Auth(AuthBase):
         """
         Generate the AWS4 auth string to sign for the request.
 
-        req      -- requests PreparedRequest object. This should already
+        req      -- Requests PreparedRequest object. This should already
                     include an x-amz-date header.
         cano_req -- The Canonical Request, as returned by
                     get_canonical_request()
@@ -263,6 +277,8 @@ class AWS4Auth(AuthBase):
     def amz_cano_path(path):
         """
         Generate the canonical path as per AWS4 auth requirements.
+
+        Not documented anywhere, determined from aws4_testsuite examples.
 
         path -- request path
 
@@ -283,7 +299,7 @@ class AWS4Auth(AuthBase):
     @staticmethod
     def amz_cano_querystring(qs):
         """
-        Parse and format qeurystring as per AWS4 auth requirements.
+        Parse and format querystring as per AWS4 auth requirements.
 
         Perform percent quoting as needed.
 
@@ -292,8 +308,8 @@ class AWS4Auth(AuthBase):
         """
         safe_qs_amz_chars = '&=+'
         safe_qs_unresvd = '-_.~'
-        # If Python 2 switch to working entirely in str
-        # as quote() has problems with unicode
+        # If Python 2, switch to working entirely in str
+        # as quote() has problems with Unicode
         if PY2:
             qs = qs.encode('utf-8')
             safe_qs_amz_chars = safe_qs_amz_chars.encode()
