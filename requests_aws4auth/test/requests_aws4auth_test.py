@@ -4,6 +4,8 @@
 """
 Tests for requests-aws4auth package.
 
+aws_testsuite.zip
+-----------------
 Two major tests are dependent on having a copy of the AWS4 testsuite available.
 Because Amazon hasn't made the licensing conditions clear for this it's not
 included in this source, but it is free to download.
@@ -17,6 +19,21 @@ AmzAws4TestSuite.__init__().
 
 Without the test suite the rest of the tests will still run, but many edge
 cases covered by the suite will be missed.
+
+Live service tests
+------------------
+This module contains tests against live AWS services. In order to run these
+your AWS access ID and access key need to be specified in the AWS_ACCESS_ID
+and AWS_ACCESS_ID environment variables respectively. This can be done with
+something like:
+
+>>> AWS_ACCESS_ID='ID' AWS_ACCESS_KEY='KEY' python requests_aws4auth_test.py
+
+If these variables are not provided the rest of the tests will still run but
+the live service tests will be skipped.
+
+The live tests perform information retrieval operations only, no chargeable
+operations are performed!
 
 """
 
@@ -62,7 +79,7 @@ class AmzAws4TestSuite:
     http://docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html
 
     Methods:
-    load_testsuite_data: Staticmethod. Loads the test suites file found at the
+    load_testsuite_data: Staticmethod. Loads the test suite files found at the
                          supplied path and returns a dict containing the data.
 
     Attributes:
@@ -144,7 +161,7 @@ except IOError as e:
 
 def request_from_text(text):
     """
-    Construct a requests PreparedRequest using values provided in text.
+    Construct a Requests PreparedRequest using values provided in text.
 
     text should be a plaintext HTTP request, as defined in RFC7230.
 
