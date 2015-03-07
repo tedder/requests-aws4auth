@@ -7,18 +7,15 @@ requests-aws4auth
 .. image:: https://img.shields.io/pypi/l/requests-aws4auth.svg
         :target: https://pypi.python.org/pypi/requests-aws4auth
 
-Amazon Web Services version 4 authentication for the Python `requests`_
+Amazon Web Services version 4 authentication for the Python Requests_
 library.
 
-.. _requests: https://github.com/kennethreitz/requests
+.. _Requests: https://github.com/kennethreitz/requests
 
 Features
 --------
-* AWS version 4 authentication for all AWS `regions`_ and `services`_
-* Generation of distributable signing keys with full scope customisation
-
-.. _regions: http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
-.. _services: http://docs.aws.amazon.com/general/latest/gr/rande.html
+* AWS authentication for all AWS services_ that support AWS auth v4
+* Generation of re-usable signing keys with full scope customisation
 
 Basic usage
 -----------
@@ -43,11 +40,13 @@ Install via pip:
 
     $ pip install requests-aws4auth
 
-requests-aws4auth requires the `requests`_ library by Kenneth Reitz.
+requests-aws4auth requires the Requests_ library by Kenneth Reitz.
+
+requests-aws4auth is tested on Python 2.7 and 3.2 and up.
 
 ``AWS4Auth`` objects
 --------------------
-Supply an ``AWSAuth`` instance as the ``auth`` argument to a requests request
+Supply an ``AWSAuth`` instance as the ``auth`` argument to a Requests request
 to handle AWS authentication. ``AWS4Auth`` instances can be created by
 supplying scope parameters directly or by using a pre-generated signing key:
 
@@ -72,12 +71,12 @@ http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region.  e.g.
 
 ``service`` - the name of the service you're connecting to, as per endpoints
 at: http://docs.aws.amazon.com/general/latest/gr/rande.html.  e.g.
-``elasticbeanstalk``. 
+``elasticbeanstalk``.
 
-``signing_key`` - a signing key as created by ``AWS4SigningKey``.
+``signing_key`` - an ``AWS4SigningKey`` instance.
 
 You can reuse ``AWS4Auth`` instances to authenticate as many requests as you
-need.
+need. Note signing keys (and thus AWS4Auth instances) expire after 7 days.
 
 ``AWS4SigningKey`` objects
 --------------------------
@@ -98,14 +97,49 @@ signing key's validity, signing keys are valid for 7 days from this date. If
 Once instantiated the key string itself is stored in the object's ``key``
 attribute. The ``access_key`` is not stored in the object.
 
-Multithreading/processing
+Multi-threading / processing
 -------------------------
 ``AWS4Auth`` instances should be fine to share across multiple threads and
 processes so long as threads/processes don't mess with the internal variables.
 
+.. _services:
+
+Supported Services
+------------------
+This package has been tested as working against:
+
+AppStream, Auto-Scaling, CloudFormation, CloudFront, CloudHSM, CloudSearch,
+CloudTrail, CloudWatch Monitoring, CloudWatch Logs, CodeDeploy, Cognito
+Identity, Cognito Sync, Config, DataPipeline, Direct Connect, DynamoDB, Elastic
+Beanstalk, ElastiCache, EC2, EC2 Container Service, Elastic Load Balancing,
+Elastic MapReduce, Elastic Transcoder, Glacier, Identity and Access Management
+(IAM), Key Management Service, Kinesis, Lambda, Opsworks, Redshift, Relational
+Database Service (RDS), Route 53, Simple Storage Service (S3), Simple
+Notification Service (SNS), Simple Queue Service (SQS), Storage Gateway,
+Security Token Service (STS)
+
+The following services do not support AWS auth version 4 and are not usable
+with this package:
+
+* Simple Email Service (SES) - AWS auth v3 only
+* Simple Workflow Service - AWS auth v3 only
+* Import/Export - AWS auth v2 only
+* SimpleDB - AWS auth V2 only
+* DevPay - AWS auth v1 only
+* Mechanical Turk - has own signing mechanism
+
+The AWS Support API has not been tested as it requires a premium subscription.
+Connection parameters are included in the tests though should you have access
+and want to try it.
+
+The package passes all tests in the AWS auth v4 `test suite`_, and contains
+tests against the supported live services.
+
+.. _test suite: http://docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html
+
 Unsupported AWS features / todo
 -------------------------------
-* Currently does not support Amazon S3 chunked uploads.
-* Requires requests library to be present even if only using
-  ``AWS4SigningKey``.
+* Currently does not support Amazon S3 chunked uploads
+* Requires Requests library to be present even if only using
+  ``AWS4SigningKey``
 
