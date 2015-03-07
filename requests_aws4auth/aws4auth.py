@@ -46,7 +46,10 @@ class AWS4Auth(AuthBase):
     This example lists your buckets in the eu-west-1 region of the Amazon S3
     service.
 
-    """
+   """
+
+    default_include_headers = ['host', 'date', 'x-amz-content-sha256',
+                               'x-amz-date', 'x-amz-target']
 
     def __init__(self, *args, **kwargs):
         """
@@ -74,10 +77,9 @@ class AWS4Auth(AuthBase):
         All arguments should be supplied as strings.
 
         """
-
-        i = len(args)
-        if i not in [2, 4]:
-            msg = 'AWS4Auth() takes 2 or 4 arguments, {} given'.format(i)
+        l = len(args)
+        if l not in [2, 4]:
+            msg = 'AWS4Auth() takes 2 or 4 arguments, {} given'.format(l)
             raise TypeError(msg)
         self.access_id = args[0]
         if isinstance(args[1], AWS4SigningKey) and len(args) == 2:
@@ -99,10 +101,10 @@ class AWS4Auth(AuthBase):
         if 'include_hdrs' in kwargs:
             self.include_hdrs = kwargs[str('include_hdrs')]
         else:
-            self.include_hdrs = ['*']
+            self.include_hdrs = self.default_include_headers
         AuthBase.__init__(self)
 
-    def __call__(self, req, timestamp=None):
+    def __call__(self, req):
         """
         Interface used by requests module to apply authentication to HTTP
         requests.
@@ -116,14 +118,15 @@ class AWS4Auth(AuthBase):
         req -- requests PreparedRequest object
 
         """
-        timestamp = timestamp or datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
         if hasattr(req, 'body') and req.body is not None:
             self.encode_body(req)
         else:
             req.body = b''
-        content_hash = hashlib.sha256(req.body).hexdigest()
-        req.headers['x-amz-content-sha256'] = content_hash
-        req.headers['x-amz-date'] = timestamp
+        content_hash = hashlib.sha256(req.body)
+        req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
+        if 'X-Amz-Date' not in req.headers:
+            timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+            req.headers['X-Amz-Date'] = timestamp
         result = self.get_canonical_headers(req, self.include_hdrs)
         cano_headers, signed_headers = result
         cano_req = self.get_canonical_request(req, cano_headers,
@@ -162,7 +165,8 @@ class AWS4Auth(AuthBase):
                 req.body = req.body.encode(cs)
             else:
                 ct = split[0]
-                if ct == 'application/x-www-form-urlencoded':
+                if (ct == 'application/x-www-form-urlencoded' or
+                        'x-amz-' in ct):
                     req.body = req.body.encode()
                 else:
                     req.body = req.body.encode('utf-8')
@@ -186,8 +190,9 @@ class AWS4Auth(AuthBase):
         split = req.url.split('?', 1)
         qs = split[1] if len(split) == 2 else ''
         qs = cls.amz_cano_querystring(qs)
+        payload_hash = req.headers['x-amz-content-sha256']
         req_parts = [req.method.upper(), path, qs, cano_headers,
-                     signed_headers, req.headers['x-amz-content-sha256']]
+                     signed_headers, payload_hash]
         cano_req = '\n'.join(req_parts)
         return cano_req
 
@@ -206,27 +211,33 @@ class AWS4Auth(AuthBase):
 
         """
         if include is None:
-            include = ['*']
+            include = cls.default_include_headers
         include = [x.lower() for x in include]
-        headers = req.headers
-        # need to aggregate for upper/lowercase header name collisions in
-        # header names, AMZ requires values of colliding headers be
-        # concatenated into a single header with lowercase name
+        headers = req.headers.copy()
+        # Temporarily include the host header - AWS requires it to be included
+        # in the signed headers, but Requests doesn't include it in a
+        # PreparedRequest
+        if 'host' not in headers:
+            headers['host'] = urlparse(req.url).netloc
+        # Aggregate for upper/lowercase header name collisions in header names,
+        # AMZ requires values of colliding headers be concatenated into a
+        # single header with lowercase name.  Although this is not possibe with
+        # Requests, since it uses a case-insensitive dict to hold headers, this
+        # is here just in case you duck type with a regular dict
         cano_headers_dict = {}
         for hdr, val in headers.items():
             hdr = hdr.strip().lower()
             val = cls.amz_norm_whitespace(val).strip()
             if hdr in include or '*' in include:
-                vals = cano_headers_dict.setdefault(hdr.lower(), [])
+                vals = cano_headers_dict.setdefault(hdr, [])
                 vals.append(val)
-        if 'host' in include and 'host' not in cano_headers_dict:
-            cano_headers_dict['host'] = urlparse(req.url).netloc
         # flatten cano_headers dict to string
         cano_headers = ''
         signed_headers_list = []
         for hdr in sorted(cano_headers_dict):
-            val = ','.join(cano_headers_dict[hdr])
-            cano_headers += ':'.join([hdr, val]) + '\n'
+            vals = cano_headers_dict[hdr]
+            val = ','.join(sorted(vals))
+            cano_headers += '{}:{}\n'.format(hdr, val)
             signed_headers_list.append(hdr)
         signed_headers = ';'.join(signed_headers_list)
         return (cano_headers, signed_headers)
