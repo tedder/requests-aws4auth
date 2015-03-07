@@ -4,6 +4,10 @@ authentication version 4 signing keys.
 
 """
 
+# Licensed under the MIT License:
+# http://opensource.org/licenses/MIT
+
+
 from __future__ import unicode_literals
 
 import hmac

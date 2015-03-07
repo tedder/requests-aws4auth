@@ -139,6 +139,10 @@ Unsupported AWS features / todo
 
 """
 
+# Licensed under the MIT License:
+# http://opensource.org/licenses/MIT
+
+
 from .aws4auth import AWS4Auth
 from .aws4signingkey import AWS4SigningKey
 del aws4auth

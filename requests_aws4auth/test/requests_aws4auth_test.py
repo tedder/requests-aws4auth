@@ -37,6 +37,9 @@ operations are performed!
 
 """
 
+# Licensed under the MIT License:
+# http://opensource.org/licenses/MIT
+
 
 from __future__ import unicode_literals, print_function
 
