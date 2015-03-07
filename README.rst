@@ -14,8 +14,30 @@ library.
 
 Features
 --------
-* AWS authentication for all AWS services_ that support AWS auth v4
+* Requests authentication for all AWS services that support AWS auth v4
 * Generation of re-usable signing keys with full scope customisation
+
+Supported Services
+------------------
+This package has been tested as working against:
+
+AppStream, Auto-Scaling, CloudFormation, CloudFront, CloudHSM, CloudSearch,
+CloudTrail, CloudWatch Monitoring, CloudWatch Logs, CodeDeploy, Cognito
+Identity, Cognito Sync, Config, DataPipeline, Direct Connect, DynamoDB, Elastic
+Beanstalk, ElastiCache, EC2, EC2 Container Service, Elastic Load Balancing,
+Elastic MapReduce, Elastic Transcoder, Glacier, Identity and Access Management
+(IAM), Key Management Service, Kinesis, Lambda, Opsworks, Redshift, Relational
+Database Service (RDS), Route 53, Simple Storage Service (S3), Simple
+Notification Service (SNS), Simple Queue Service (SQS), Storage Gateway,
+Security Token Service (STS)
+
+The following services do not support AWS auth version 4 and are not usable
+with this package:
+
+Simple Email Service (SES), Simple Workflow Service (SWF), Import/Export,
+SimpleDB, DevPay, Mechanical Turk
+
+The AWS Support API has not been tested as it requires a premium subscription.
 
 Basic usage
 -----------
@@ -99,41 +121,21 @@ attribute. The ``access_key`` is not stored in the object.
 
 Multi-threading / processing
 -------------------------
-``AWS4Auth`` instances should be fine to share across multiple threads and
-processes so long as threads/processes don't mess with the internal variables.
+``AWS4Auth`` and ``AWS4SigningKey`` instances should be fine to share across
+multiple threads and processes so long as threads/processes don't mess with the
+internal variables.
 
-.. _services:
-
-Supported Services
-------------------
-This package has been tested as working against:
-
-AppStream, Auto-Scaling, CloudFormation, CloudFront, CloudHSM, CloudSearch,
-CloudTrail, CloudWatch Monitoring, CloudWatch Logs, CodeDeploy, Cognito
-Identity, Cognito Sync, Config, DataPipeline, Direct Connect, DynamoDB, Elastic
-Beanstalk, ElastiCache, EC2, EC2 Container Service, Elastic Load Balancing,
-Elastic MapReduce, Elastic Transcoder, Glacier, Identity and Access Management
-(IAM), Key Management Service, Kinesis, Lambda, Opsworks, Redshift, Relational
-Database Service (RDS), Route 53, Simple Storage Service (S3), Simple
-Notification Service (SNS), Simple Queue Service (SQS), Storage Gateway,
-Security Token Service (STS)
-
-The following services do not support AWS auth version 4 and are not usable
-with this package:
-
-* Simple Email Service (SES) - AWS auth v3 only
-* Simple Workflow Service - AWS auth v3 only
-* Import/Export - AWS auth v2 only
-* SimpleDB - AWS auth V2 only
-* DevPay - AWS auth v1 only
-* Mechanical Turk - has own signing mechanism
-
-The AWS Support API has not been tested as it requires a premium subscription.
-Connection parameters are included in the tests though should you have access
-and want to try it.
+Testing
+-------
+A test suite is included in the test folder. 
 
 The package passes all tests in the AWS auth v4 `test suite`_, and contains
-tests against the supported live services.
+tests against the supported live services. See docstrings in 
+test/requests_aws4auth_test.py for details about running the tests.
+
+Connection parameters are included in the tests for the AWS Support API, should
+you have access and want to try it. The documentation says it supports auth v4
+so it should work if you have a subscription. Do pass on your results!
 
 .. _test suite: http://docs.aws.amazon.com/general/latest/gr/signature-v4-test-suite.html
 
