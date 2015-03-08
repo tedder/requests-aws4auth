@@ -60,7 +60,7 @@ S3 service.
 
 ``AWS4Auth`` objects
 --------------------
-Supply an ``AWSAuth`` instance as the ``auth`` argument to a Requests request
+Supply an ``AWSAuth`` instance as the ``auth`` argument to a Requests call
 to handle AWS authentication. ``AWS4Auth`` instances can be created by
 supplying scope parameters directly or by using a pre-generated signing key:
 
@@ -90,7 +90,7 @@ at: http://docs.aws.amazon.com/general/latest/gr/rande.html.  e.g.
 ``signing_key`` - an ``AWS4SigningKey`` instance.
 
 You can reuse ``AWS4Auth`` instances to authenticate as many requests as you
-need. Note signing keys (and thus AWS4Auth instances) expire after 7 days.
+need. Note signing keys (and thus ``AWS4Auth`` instances) expire after 7 days.
 
 ``AWS4SigningKey`` objects
 --------------------------
