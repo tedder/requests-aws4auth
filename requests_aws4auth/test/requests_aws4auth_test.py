@@ -27,7 +27,7 @@ your AWS access ID and access key need to be specified in the AWS_ACCESS_ID
 and AWS_ACCESS_ID environment variables respectively. This can be done with
 something like:
 
->>> AWS_ACCESS_ID='ID' AWS_ACCESS_KEY='KEY' python requests_aws4auth_test.py
+$ AWS_ACCESS_ID='ID' AWS_ACCESS_KEY='KEY' python requests_aws4auth_test.py
 
 If these variables are not provided the rest of the tests will still run but
 the live service tests will be skipped.

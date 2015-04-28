@@ -61,6 +61,16 @@ class AWS4Auth(AuthBase):
     This example lists your buckets in the eu-west-1 region of the Amazon S3
     service.
 
+    Class attributes
+    ----------------
+
+    AWS4Auth.access_id   -- the access ID supplied to the instance
+    AWS4Auth.region      -- the AWS region for the instance
+    AWS4Auth.service     -- the endpoint code for the service for this instance
+    AWS4Auth.signing_key -- instance of AWS4SigningKey used for this instance,
+                            either generated from the supplied parameters or
+                            supplied directly on the command line
+
    """
 
     default_include_headers = ['host', 'date', 'x-amz-content-sha256',
@@ -89,7 +99,7 @@ class AWS4Auth(AuthBase):
                       e.g. elasticbeanstalk.
         signing_key - An AWS4SigningKey instance.
 
-        All arguments should be supplied as strings.
+        All arguments except signing_key should be supplied as strings.
 
         """
         l = len(args)
@@ -239,7 +249,7 @@ class AWS4Auth(AuthBase):
             headers['host'] = urlparse(req.url).netloc
         # Aggregate for upper/lowercase header name collisions in header names,
         # AMZ requires values of colliding headers be concatenated into a
-        # single header with lowercase name.  Although this is not possibe with
+        # single header with lowercase name.  Although this is not possible with
         # Requests, since it uses a case-insensitive dict to hold headers, this
         # is here just in case you duck type with a regular dict
         cano_headers_dict = {}
