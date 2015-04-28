@@ -73,8 +73,7 @@ class AWS4Auth(AuthBase):
 
    """
 
-    default_include_headers = ['host', 'date', 'x-amz-content-sha256',
-                               'x-amz-date', 'x-amz-target']
+    default_include_headers = ['host', 'content-type', 'x-amz-*']
 
     def __init__(self, *args, **kwargs):
         """
@@ -233,9 +232,13 @@ class AWS4Auth(AuthBase):
 
         req     -- Requests PreparedRequest object
         include -- List of headers to include in the canonical and signed
-                   headers. By default it includes all headers, which is fine
-                   for AWS. It's primarily included to allow testing against
-                   specific examples from Amazon.
+                   headers. It's primarily included to allow testing against
+                   specific examples from Amazon. If omitted or None it
+                   includes host, content-type and any header starting 'x-amz-'
+                   except for x-amz-client context, which appears to break
+                   mobile analytics auth if included. Except for the
+                   x-amz-client-context exclusion these defaults are per the
+                   AWS documentation.
 
         """
         if include is None:
@@ -256,7 +259,9 @@ class AWS4Auth(AuthBase):
         for hdr, val in headers.items():
             hdr = hdr.strip().lower()
             val = cls.amz_norm_whitespace(val).strip()
-            if hdr in include or '*' in include:
+            if (hdr in include or '*' in include or
+                    ('x-amz-*' in include and hdr.startswith('x-amz-') and not
+                    hdr == 'x-amz-client-context')):
                 vals = cano_headers_dict.setdefault(hdr, [])
                 vals.append(val)
         # Flatten cano_headers dict to string and generate signed_headers
