@@ -24,6 +24,8 @@ def find_version(*file_paths):
 
 with codecs.open('README.rst', 'r', 'utf-8') as f:
     readme = f.read()
+with codecs.open('HISTORY.rst', 'r', 'utf-8') as f:
+    history = f.read()
 
 
 version = find_version('requests_aws4auth', '__init__.py')
@@ -34,7 +36,7 @@ setup(
     packages=['requests_aws4auth'],
     version=version,
     description='AWS4 authentication for Requests',
-    long_description=readme,
+    long_description=readme + '\n\n' + history,
     author='Sam Washington',
     author_email='codegreen@aethris.net',
     url='https://github.com/sam-washington/requests-aws4auth',
