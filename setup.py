@@ -47,7 +47,7 @@ setup(
     install_requires=['requests'],
     package_data={'requests_aws4auth': ['test/requests_aws4auth_test.py',
                                         '../README.rst', '../LICENSE',
-                                        '../NOTICE']},
+                                        '../NOTICE', '../HISTORY.rst']},
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
