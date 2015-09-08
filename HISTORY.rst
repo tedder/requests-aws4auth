@@ -1,6 +1,15 @@
 Release History
 ---------------
 
+0.6 (07-09-2015)
+++++++++++++++++
+
+**Bugfixes**
+
+- Included HISTORY.rst in built package to fix pip source install failure.
+  Thanks to Beirdo for the bug report.
+
+
 0.5 (29-04-2015)
 ++++++++++++++++
 
