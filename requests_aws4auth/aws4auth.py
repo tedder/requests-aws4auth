@@ -144,10 +144,12 @@ class AWS4Auth(AuthBase):
         """
         if hasattr(req, 'body') and req.body is not None:
             self.encode_body(req)
+            content_hash = hashlib.sha256(req.body)
         else:
-            req.body = b''
-        content_hash = hashlib.sha256(req.body)
+            content_hash = hashlib.sha256(b'')
+
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
+
         if 'X-Amz-Date' not in req.headers:
             timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
             req.headers['X-Amz-Date'] = timestamp
