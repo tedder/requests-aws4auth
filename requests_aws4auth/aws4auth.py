@@ -251,7 +251,7 @@ class AWS4Auth(AuthBase):
         # in the signed headers, but Requests doesn't include it in a
         # PreparedRequest
         if 'host' not in headers:
-            headers['host'] = urlparse(req.url).netloc
+            headers['host'] = urlparse(req.url).netloc.split(':')[0]
         # Aggregate for upper/lowercase header name collisions in header names,
         # AMZ requires values of colliding headers be concatenated into a
         # single header with lowercase name.  Although this is not possible with
