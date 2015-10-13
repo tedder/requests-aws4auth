@@ -65,13 +65,8 @@ class AWS4SigningKey:
 
         self.region = region
         self.service = service
-        self.amz_date = date or datetime.utcnow().strftime('%Y%m%d')
-        self.scope = '{}/{}/{}/aws4_request'.format(
-                                            self.amz_date,
-                                            self.region,
-                                            self.service)
-        self.key = self.generate_key(access_key, self.region,
-                                     self.service, self.amz_date)
+        self.access_key = access_key
+        self.set_date(date or datetime.utcnow().strftime('%Y%m%d'))
 
     @classmethod
     def generate_key(cls, access_key, region, service, amz_date,
@@ -111,3 +106,24 @@ class AWS4SigningKey:
         if isinstance(msg, text_type):
             msg = msg.encode('utf-8')
         return hmac.new(key, msg, hashlib.sha256).digest()
+
+
+    def set_date(self, date):
+        """
+        Allows seting new date for this instance of AWS4SigningKey.
+
+        date       -- 8-digit date of the form YYYYMMDD. This is the starting
+                      date for the signing key's validity, signing keys are
+                      valid for 7 days from this date.  If date is not supplied
+                      the current date is used.
+        """
+
+
+        self.amz_date = date
+        self.scope = '{}/{}/{}/aws4_request'.format(
+                                            self.amz_date,
+                                            self.region,
+                                            self.service)
+        self.key = self.generate_key(self.access_key, self.region,
+                                     self.service, self.amz_date)
+
