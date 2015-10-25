@@ -144,10 +144,12 @@ class AWS4Auth(AuthBase):
         """
         if hasattr(req, 'body') and req.body is not None:
             self.encode_body(req)
+            content_hash = hashlib.sha256(req.body)
         else:
-            req.body = b''
-        content_hash = hashlib.sha256(req.body)
+            content_hash = hashlib.sha256(b'')
+
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
+
         if 'X-Amz-Date' not in req.headers:
             timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
             req.headers['X-Amz-Date'] = timestamp
@@ -249,7 +251,7 @@ class AWS4Auth(AuthBase):
         # in the signed headers, but Requests doesn't include it in a
         # PreparedRequest
         if 'host' not in headers:
-            headers['host'] = urlparse(req.url).netloc
+            headers['host'] = urlparse(req.url).netloc.split(':')[0]
         # Aggregate for upper/lowercase header name collisions in header names,
         # AMZ requires values of colliding headers be concatenated into a
         # single header with lowercase name.  Although this is not possible with
