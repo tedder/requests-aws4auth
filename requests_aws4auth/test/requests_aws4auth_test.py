@@ -431,6 +431,21 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         self.assertEqual(cano_headers, cano_expected)
         self.assertEqual(signed_headers, signed_expected)
 
+    def test_netloc_port(self):
+        """
+        Test that change in d190dcb doesn't regress - strip port from netloc
+        before generating signature when Host header is not already present in
+        request.
+
+        """
+        req = requests.Request('GET', 'http://amazonaws.com:8443')
+        preq = req.prepare()
+        self.assertNotIn('host', preq.headers)
+        result = AWS4Auth.get_canonical_headers(preq, include=['host'])
+        cano_hdrs, signed_hdrs = result
+        expected = 'host:amazonaws.com\n'
+        self.assertEqual(cano_hdrs, expected)
+
 
 class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
 
