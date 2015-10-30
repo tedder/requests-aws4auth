@@ -339,18 +339,34 @@ class AWS4Auth_EncodeBody_Test(unittest.TestCase):
         self.req.body = ''
         self.req.headers = {}
 
-    def test_encode_body_unicode_to_bytes(self):
-        self.req.body = u('hello')
+    def test_encode_body_safe_unicode_to_utf8(self):
+        self.req.body = 'hello'
         AWS4Auth.encode_body(self.req)
         self.assertEqual(self.req.body, b'\x68\x65\x6c\x6c\x6f')
         expected = 'text/plain; charset=utf-8'
         self.assertEqual(self.req.headers['content-type'], expected)
 
-    def test_encode_body_utf8_string_to_bytes(self):
-        self.req.body = u('☃')
+    def test_encode_body_unsafe_unicode_to_utf8(self):
+        self.req.body = '☃'
         AWS4Auth.encode_body(self.req)
         self.assertEqual(self.req.body, b'\xe2\x98\x83')
         expected = 'text/plain; charset=utf-8'
+        self.assertEqual(self.req.headers['content-type'], expected)
+
+    def test_encode_body_safe_unicode_to_other_bytes(self):
+        self.req.body = 'hello'
+        self.req.headers['content-type'] = 'text/plain; charset=ascii'
+        AWS4Auth.encode_body(self.req)
+        self.assertEqual(self.req.body, b'\x68\x65\x6c\x6c\x6f')
+        expected = 'text/plain; charset=ascii'
+        self.assertEqual(self.req.headers['content-type'], expected)
+
+    def test_encode_body_unsafe_unicode_to_other_bytes(self):
+        self.req.body = '€'
+        self.req.headers['content-type'] = 'text/plain; charset=cp1252'
+        AWS4Auth.encode_body(self.req)
+        self.assertEqual(self.req.body, b'\x80')
+        expected = 'text/plain; charset=cp1252'
         self.assertEqual(self.req.headers['content-type'], expected)
 
     def test_encode_body_bytes(self):
@@ -752,4 +768,4 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)
