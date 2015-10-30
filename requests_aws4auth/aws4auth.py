@@ -313,6 +313,7 @@ class AWS4Auth(AuthBase):
         if path.endswith('/') and not fixed_path.endswith('/'):
             fixed_path += '/'
         full_path = fixed_path
+        full_path = quote(full_path, safe='/~')
         if qs:
             full_path = '?'.join((full_path, qs))
         return full_path
