@@ -534,6 +534,18 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
                     '74deb456c')
         self.assertEqual(signature, expected)
 
+    def test_generate_empty_body_signature(self):
+        """
+        Check that change in af03ce5 doesn't regress - ensure request body is
+        not altered by signing process if it is empty (i.e None).
+
+        """
+        auth = AWS4Auth('x', 'x', 'us-east-1', 's3')
+        req = requests.Request('GET', 'http://amazonaws.com', data=None)
+        preq = req.prepare()
+        sreq = auth(preq)
+        self.assertEqual(sreq.body, None)
+
     @unittest.skipIf(amz_aws4_testsuite is None, 'aws4_testsuite unavailable,'
                      ' download it from http://docs.aws.amazon.com/general/la'
                      'test/gr/samples/aws4_testsuite.zip')
