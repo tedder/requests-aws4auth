@@ -482,7 +482,8 @@ class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
             'b6359072c78d70ebee1e81adcbab4f01bf2c23245fa365ef83fe8f1f95'
             '5085e2']
         expected = '\n'.join(expected)
-        cano_req = AWS4Auth.get_canonical_request(req, cano_headers,
+        auth = AWS4Auth('dummy', 'dummy', 'dummy', 'host')
+        cano_req = auth.get_canonical_request(req, cano_headers,
                                                   signed_headers)
         self.assertEqual(cano_req, expected)
 
@@ -509,7 +510,8 @@ class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
         req.headers['x-amz-content-sha256'] = hsh.hexdigest()
         result = AWS4Auth.get_canonical_headers(req, include_hdrs)
         cano_headers, signed_headers = result
-        cano_req = AWS4Auth.get_canonical_request(req, cano_headers,
+        auth = AWS4Auth('dummy', 'dummy', 'dummy', 'host')
+        cano_req = auth.get_canonical_request(req, cano_headers,
                                                   signed_headers)
         msg = 'Group: ' + group_name
         self.assertEqual(cano_req, group['.creq'], msg=msg)

@@ -198,8 +198,7 @@ class AWS4Auth(AuthBase):
                     req.body = req.body.encode('utf-8')
                     req.headers['content-type'] = ct + '; charset=utf-8'
 
-    @classmethod
-    def get_canonical_request(cls, req, cano_headers, signed_headers):
+    def get_canonical_request(self, req, cano_headers, signed_headers):
         """
         Create the AWS authentication Canonical Request string.
 
@@ -212,12 +211,12 @@ class AWS4Auth(AuthBase):
 
         """
         url = urlparse(req.url)
-        path = cls.amz_cano_path(url.path)
+        path = self.amz_cano_path(url.path)
         # AWS handles "extreme" querystrings differently to urlparse
         # (see post-vanilla-query-nonunreserved test in aws_testsuite)
         split = req.url.split('?', 1)
         qs = split[1] if len(split) == 2 else ''
-        qs = cls.amz_cano_querystring(qs)
+        qs = self.amz_cano_querystring(qs)
         payload_hash = req.headers['x-amz-content-sha256']
         req_parts = [req.method.upper(), path, qs, cano_headers,
                      signed_headers, payload_hash]
@@ -294,8 +293,7 @@ class AWS4Auth(AuthBase):
         sig_string = '\n'.join(sig_items)
         return sig_string
 
-    @staticmethod
-    def amz_cano_path(path):
+    def amz_cano_path(self, path):
         """
         Generate the canonical path as per AWS4 auth requirements.
 
@@ -304,6 +302,7 @@ class AWS4Auth(AuthBase):
         path -- request path
 
         """
+        safe_chars = '/~'
         qs = ''
         fixed_path = path
         if '?' in fixed_path:
@@ -313,8 +312,22 @@ class AWS4Auth(AuthBase):
         if path.endswith('/') and not fixed_path.endswith('/'):
             fixed_path += '/'
         full_path = fixed_path
+        # If Python 2, switch to working entirely in str as quote() has problems
+        # with Unicode
+        if PY2:
+            full_path = full_path.encode('utf-8')
+            safe_chars = safe_chars.encode('utf-8')
+            qs = qs.encode('utf-8')
+        # S3 seems to require unquoting first. 'host' service is used in
+        # amz_testsuite tests
+        if self.service in ['s3', 'host']:
+            full_path = unquote(full_path)
+        full_path = quote(full_path, safe=safe_chars)
         if qs:
-            full_path = '?'.join((full_path, qs))
+            qm = b'?' if PY2 else '?'
+            full_path = qm.join((full_path, qs))
+        if PY2:
+            full_path = unicode(full_path)
         return full_path
 
     @staticmethod
