@@ -1,5 +1,5 @@
 """
-Provides AWS4SigningKey class for generating Amazone Web Services
+Provides AWS4SigningKey class for generating Amazon Web Services
 authentication version 4 signing keys.
 
 """
