@@ -49,7 +49,7 @@ Install via pip:
 
 requests-aws4auth requires the `Requests`_ library by Kenneth Reitz.
 
-requests-aws4auth is tested on Python 2.7 and 3.2 and up.
+requests-aws4auth is tested on Python 2.7 and 3.3 and up.
 
 Basic usage
 -----------

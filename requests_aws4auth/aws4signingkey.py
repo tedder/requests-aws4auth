@@ -12,6 +12,7 @@ from __future__ import unicode_literals
 
 import hmac
 import hashlib
+from warnings import warn
 from datetime import datetime
 from .six import text_type
 
@@ -20,28 +21,34 @@ class AWS4SigningKey:
     """
     AWS signing key. Used to sign AWS authentication strings.
 
-    The access key is not stored in the object after instantiation.
+    The secret key is stored in the instance after instantiation, this can be
+    changed via the store_secret_key argument, see below for details.
 
     Methods:
-    generate_key() -- Generate AWS4 Signing Key string.
+    generate_key() -- Generate AWS4 Signing Key string
     sign_sha256()  -- Generate SHA256 HMAC signature, encoding message to bytes
-                      if required.
+                      first if required
 
     Attributes:
     region   -- AWS region the key is scoped for
     service  -- AWS service the key is scoped for
-    amz_date -- Initial date key is scoped for
+    date     -- Date the key is scoped for
     scope    -- The AWS scope string for this key, calculated from the above
-                attributes.
+                attributes
     key      -- The signing key string itself
+
+    amz_date -- Deprecated name for 'date'. Use the 'date' attribute instead.
+                amz_date will be removed in a future version.
 
     """
 
-    def __init__(self, access_key, region, service, date=None):
+    def __init__(self, secret_key, region, service, date=None,
+                 store_secret_key=True):
         """
-        >>> AWS4SigningKey(access_key, region, service[, date])
+        >>> AWS4SigningKey(secret_key, region, service[, date]
+        ...                [, store_secret_key])
 
-        access_key -- This is your AWS access key
+        secret_key -- This is your AWS secret access key
         region     -- The region you're connecting to, as per list at
                       http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
                       e.g. us-east-1. For services which don't require a
@@ -50,32 +57,48 @@ class AWS4SigningKey:
                       endpoints at:
                       http://docs.aws.amazon.com/general/latest/gr/rande.html
                       e.g. elasticbeanstalk
-        date       -- 8-digit date of the form YYYYMMDD. This is the starting
-                      date for the signing key's validity, signing keys are
-                      valid for 7 days from this date.  If date is not supplied
-                      the current date is used.
+        date       -- 8-digit date of the form YYYYMMDD. Key is only valid for
+                      requests with a Date or X-Amz-Date header matching this
+                      date. If date is not supplied the current date is
+                      used.
+        store_secret_key
+                   -- Whether the secret key is stored in the instance. By
+                      default this is True, meaning the key is stored in
+                      the secret_key property and is available to any
+                      code the instance is passed to. Having the secret
+                      key retained makes it easier to regenerate the key
+                      if a scope parameter changes (usually the date).
+                      This is used by the AWS4Auth class to perform its
+                      automatic key updates when a request date/scope date
+                      mismatch is encountered.
+
+                      If you are passing instances to untrusted code you can
+                      set this to False. This will cause the secret key to be
+                      discarded as soon as the signing key has been generated.
+                      Note though that you will need to manually regenerate
+                      keys when needed (or if you use the regenerate_key()
+                      method on an AWS4Auth instance you will need to pass it
+                      the secret key).
 
         All arguments should be supplied as strings.
-
-        Once instantiated the signing key string is stored in the key
-        attribute. The access key is not stored in the object after
-        instantiation.
 
         """
 
         self.region = region
         self.service = service
-        self.amz_date = date or datetime.utcnow().strftime('%Y%m%d')
+        self.date = date or datetime.utcnow().strftime('%Y%m%d')
         self.scope = '{}/{}/{}/aws4_request'.format(
-                                            self.amz_date,
+                                            self.date,
                                             self.region,
                                             self.service)
-        self.key = self.generate_key(access_key, self.region,
-                                     self.service, self.amz_date)
+        self.store_secret_key = store_secret_key
+        self.secret_key = secret_key if self.store_secret_key else None
+        self.key = self.generate_key(secret_key, self.region,
+                                     self.service, self.date)
 
     @classmethod
-    def generate_key(cls, access_key, region, service, amz_date,
-                     intermediate=False):
+    def generate_key(cls, secret_key, region, service, date,
+                     intermediates=False):
         """
         Generate the signing key string as bytes.
 
@@ -84,16 +107,16 @@ class AWS4SigningKey:
 
         ( signing_key, date_key, region_key, service_key )
 
-        The intermediate keys can be used for testing against example from
+        The intermediate keys can be used for testing against examples from
         Amazon.
 
         """
-        init_key = ('AWS4' + access_key).encode('utf-8')
-        date_key = cls.sign_sha256(init_key, amz_date)
+        init_key = ('AWS4' + secret_key).encode('utf-8')
+        date_key = cls.sign_sha256(init_key, date)
         region_key = cls.sign_sha256(date_key, region)
         service_key = cls.sign_sha256(region_key, service)
         key = cls.sign_sha256(service_key, 'aws4_request')
-        if intermediate:
+        if intermediates:
             return (key, date_key, region_key, service_key)
         else:
             return key
@@ -111,3 +134,10 @@ class AWS4SigningKey:
         if isinstance(msg, text_type):
             msg = msg.encode('utf-8')
         return hmac.new(key, msg, hashlib.sha256).digest()
+
+    @property
+    def amz_date(self):
+        msg = ("This attribute has been renamed to 'date'. 'amz_date' is "
+             "deprecated and will be removed in a future version.")
+        warn(msg, DeprecationWarning)
+        return self.date

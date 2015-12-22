@@ -41,7 +41,7 @@ Install via pip:
 
 requests-aws4auth requires the Requests_ library by Kenneth Reitz.
 
-requests-aws4auth is tested on Python 2.7 and 3.2 and up.
+requests-aws4auth is tested on Python 2.7 and 3.3 and up.
 
 Basic usage
 -----------
@@ -143,9 +143,11 @@ Unsupported AWS features / todo
 # http://opensource.org/licenses/MIT
 
 
-from .aws4auth import AWS4Auth
+from .aws4auth import AWS4Auth, StrictAWS4Auth, PassiveAWS4Auth
 from .aws4signingkey import AWS4SigningKey
+from .exceptions import RequestsAws4AuthException, DateMismatchError, NoSecretKeyError
 del aws4auth
 del aws4signingkey
+del exceptions
 
 __version__ = '0.7'

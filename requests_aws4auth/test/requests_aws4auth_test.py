@@ -50,7 +50,8 @@ import re
 import hashlib
 import itertools
 import json
-from datetime import datetime
+import warnings
+import datetime
 from errno import ENOENT
 
 try:
@@ -63,11 +64,12 @@ import requests
 sys.path = ['../../'] + sys.path
 from requests_aws4auth import AWS4Auth
 from requests_aws4auth.aws4signingkey import AWS4SigningKey
+from requests_aws4auth.exceptions import DateFormatError, NoSecretKeyError
 from requests_aws4auth.six import PY2, u
 
 
 live_access_id = os.getenv('AWS_ACCESS_ID')
-live_access_key = os.getenv('AWS_ACCESS_KEY')
+live_secret_key = os.getenv('AWS_ACCESS_KEY')
 
 
 class SimpleNamespace:
@@ -87,7 +89,7 @@ class AmzAws4TestSuite:
 
     Attributes:
     access_id:  The AWS access ID used by the test examples in the suite.
-    access_key: The AWS secret access ID used by the test examples in the
+    secret_key: The AWS secret access key used by the test examples in the
                 suite.
     region:     The AWS region used by the test examples in the suite.
     service:    The AWS service used by the test examples in the suite.
@@ -102,7 +104,7 @@ class AmzAws4TestSuite:
 
     def __init__(self, path=None):
         self.access_id = 'AKIDEXAMPLE'
-        self.access_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
+        self.secret_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
         self.region = 'us-east-1'
         self.service = 'host'
         self.date = '20110909'
@@ -198,18 +200,54 @@ def request_from_text(text):
 class AWS4_SigningKey_Test(unittest.TestCase):
 
     def test_basic_instantiation(self):
-        obj = AWS4SigningKey('access_key', 'region', 'service', 'date')
+        obj = AWS4SigningKey('secret_key', 'region', 'service', 'date')
         self.assertEqual(obj.region, 'region')
         self.assertEqual(obj.service, 'service')
-        self.assertEqual(obj.amz_date, 'date')
         self.assertEqual(obj.scope, 'date/region/service/aws4_request')
 
+    def test_store_secret_key(self):
+        obj = AWS4SigningKey('secret_key', 'region', 'service',
+                              store_secret_key=True)
+        self.assertEqual(obj.secret_key, 'secret_key')
+
+    def test_no_store_secret_key(self):
+        obj = AWS4SigningKey('secret_key', 'region', 'service',
+                              store_secret_key=False)
+        self.assertEqual(obj.secret_key, None)
+
+    def test_default_store_secret_key(self):
+        obj = AWS4SigningKey('secret_key', 'region', 'service')
+        self.assertEqual(obj.secret_key, 'secret_key')
+
     def test_date(self):
-        test_date = datetime.utcnow().strftime('%Y%m%d')
-        obj = AWS4SigningKey('access_key', 'region', 'service')
-        if obj.amz_date != test_date:
-            test_date = datetime.utcnow().strftime('%Y%m%d')
-        self.assertEqual(obj.amz_date, test_date)
+        test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
+        obj = AWS4SigningKey('secret_key', 'region', 'service')
+        if obj.date != test_date:
+            test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
+        self.assertEqual(obj.date, test_date)
+
+    def test_amz_date(self):
+        """
+        Will be removed when deprecated amz_date attribute is removed
+
+        """
+        with warnings.catch_warnings() as w:
+            warnings.simplefilter("ignore")
+            test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
+            obj = AWS4SigningKey('secret_key', 'region', 'service')
+            if obj.amz_date != test_date:
+                test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
+            self.assertEqual(obj.amz_date, test_date)
+
+    def test_amz_date_warning(self):
+        """
+        Will be removed when deprecated amz_date attribute is removed
+
+        """
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("ignore")
+            obj = AWS4SigningKey('secret_key', 'region', 'service')
+            self.assertWarns(DeprecationWarning, getattr, obj, 'amz_date')
 
     def test_sign_sha256_unicode_msg(self):
         key = b'The quick brown fox jumps over the lazy dog'
@@ -241,7 +279,7 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         http://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html
 
         """
-        access_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
+        secret_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
         region = 'us-east-1'
         service = 'iam'
         date = '20120215'
@@ -256,8 +294,8 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         for hsh in expected_raw:
             hexen = re.findall('..', hsh)
             expected.append([int(x, base=16) for x in hexen])
-        result = AWS4SigningKey.generate_key(access_key, region,
-                                             service, date, intermediate=True)
+        result = AWS4SigningKey.generate_key(secret_key, region,
+                                             service, date, intermediates=True)
         for i, hsh in enumerate(result):
             hsh = [ord(x) for x in hsh] if PY2 else list(hsh)
             self.assertEqual(hsh, expected[i], msg='Item number {}'.format(i))
@@ -268,14 +306,14 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         http://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
 
         """
-        access_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
+        secret_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
         region = 'us-east-1'
         service = 'iam'
         date = '20110909'
         expected = [152, 241, 216, 137, 254, 196, 244, 66, 26, 220, 82, 43,
                     171, 12, 225, 248, 46, 105, 41, 194, 98, 237, 21, 229,
                     169, 76, 144, 239, 209, 227, 176, 231]
-        key = AWS4SigningKey.generate_key(access_key, region, service, date)
+        key = AWS4SigningKey.generate_key(secret_key, region, service, date)
         key = [ord(x) for x in key] if PY2 else list(key)
         self.assertEqual(key, expected)
 
@@ -285,14 +323,14 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         http://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
 
         """
-        access_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
+        secret_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
         region = 'us-east-1'
         service = 'iam'
         date = '20110909'
         expected = [152, 241, 216, 137, 254, 196, 244, 66, 26, 220, 82, 43,
                     171, 12, 225, 248, 46, 105, 41, 194, 98, 237, 21, 229,
                     169, 76, 144, 239, 209, 227, 176, 231]
-        key = AWS4SigningKey(access_key, region, service, date).key
+        key = AWS4SigningKey(secret_key, region, service, date).key
         key = [ord(x) for x in key] if PY2 else list(key)
         self.assertEqual(key, expected)
 
@@ -300,22 +338,30 @@ class AWS4_SigningKey_Test(unittest.TestCase):
 class AWS4Auth_Instantiate_Test(unittest.TestCase):
 
     def test_instantiate_from_args(self):
-        test_date = datetime.utcnow().strftime('%Y%m%d')
-        auth = AWS4Auth('access_id', 'access_key', 'region', 'service')
+        test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
+        test_inc_hdrs = ['a', 'b', 'c']
+        auth = AWS4Auth('access_id',
+                        'secret_key',
+                        'region',
+                        'service',
+                        include_hdrs=test_inc_hdrs,
+                        raise_invalid_date=True)
         self.assertEqual(auth.access_id, 'access_id')
         self.assertEqual(auth.region, 'region')
         self.assertEqual(auth.service, 'service')
+        self.assertListEqual(auth.include_hdrs, test_inc_hdrs)
+        self.assertEqual(auth.raise_invalid_date, True)
         self.assertIsInstance(auth.signing_key, AWS4SigningKey)
         self.assertEqual(auth.signing_key.region, 'region')
         self.assertEqual(auth.signing_key.service, 'service')
         if test_date != auth.signing_key.amz_date:
-            test_date = datetime.utcnow().strftime('%Y%m%d')
+            test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
         self.assertEqual(auth.signing_key.amz_date, test_date)
         expected = '{}/region/service/aws4_request'.format(test_date)
         self.assertEqual(auth.signing_key.scope, expected)
 
     def test_instantiate_from_signing_key(self):
-        key = AWS4SigningKey('access_key', 'region', 'service', 'date')
+        key = AWS4SigningKey('secret_key', 'region', 'service', 'date')
         auth = AWS4Auth('access_id', key)
         self.assertEqual(auth.access_id, 'access_id')
         self.assertEqual(auth.region, 'region')
@@ -330,6 +376,280 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
         self.assertRaises(TypeError, AWS4Auth, ('a', 'a'))
         self.assertRaises(TypeError, AWS4Auth, ('a', 'a', 'a'))
         self.assertRaises(TypeError, AWS4Auth, ('a', 'a', 'a', 'a', 'a'))
+
+    def test_raise_invalid_date_default(self):
+        auth = AWS4Auth('access_id',
+                        'secret_key',
+                        'region',
+                        'service')
+        self.assertFalse(auth.raise_invalid_date)
+
+    def test_default_include_hdrs(self):
+        auth = AWS4Auth('access_id',
+                        'secret_key',
+                        'region',
+                        'service')
+        check_set = {'host', 'content-type', 'date', 'x-amz-*'}
+        self.assertSetEqual(set(auth.include_hdrs), check_set)
+
+
+class AWS4Auth_Date_Test(unittest.TestCase):
+    def test_parse_rfc7231(self):
+        tests = {
+            'Sun, 05 Jan 1980 01:01:01 GMT': '1980-01-05',
+            'Mon, 06 Feb 1985 01:01:01 GMT': '1985-02-06',
+            'Tue, 07 Mar 1990 01:01:01 GMT': '1990-03-07',
+            'Wed, 08 Apr 1999 01:01:01 GMT': '1999-04-08',
+            'Thu, 09 May 2000 01:01:01 GMT': '2000-05-09',
+            'Fri, 10 Jun 2100 01:01:01 GMT': '2100-06-10',
+            'Sat, 02 Jul 1900 10:11:12 GMT': '1900-07-02',
+            'Sun, 01 Aug 1970 00:00:00 GMT': '1970-08-01',
+            'Mon, 09 Sep 2011 23:36:00 GMT': '2011-09-09',
+            'Tue, 10 Oct 2000 01:01:01 GMT': '2000-10-10',
+            'Wed, 22 Nov 2015 19:43:01 GMT': '2015-11-22',
+            'Thu, 31 Dec 2130 00:00:00 GMT': '2130-12-31',
+        }
+        for src, check in tests.items():
+            self.assertEqual(AWS4Auth.parse_date(src), check)
+
+    def test_parse_rfc850(self):
+        tests = {
+            'Sunday, 05-Jan-80 01:01:01 GMT': '2080-01-05',
+            'Monday, 06-Feb-85 01:01:01 EST': '2085-02-06',
+            'Tuesday, 07-Mar-90 01:01:01 BST': '2090-03-07',
+            'Wednesday, 08-Apr-99 01:01:01 GMT': '2099-04-08',
+            'Thursday, 09-May-00 01:01:01 GMT': '2000-05-09',
+            'Friday, 10-Jun-00 01:01:01 GMT': '2000-06-10',
+            'Saturday, 02-Jul-00 10:11:12 GMT': '2000-07-02',
+            'Sunday, 01-Aug-70 00:00:00 GMT': '2070-08-01',
+            'Monday, 09-Sep-11 23:36:00 GMT': '2011-09-09',
+            'Tuesday, 10-Oct-00 01:01:01 GMT': '2000-10-10',
+            'Wednesday, 22-Nov-15 19:43:01 GMT': '2015-11-22',
+            'Thursday, 31-Dec-30 00:00:00 GMT': '2030-12-31',
+        }
+        for src, check in tests.items():
+            self.assertEqual(AWS4Auth.parse_date(src), check)
+
+    def test_parse_ctime(self):
+        tests = {
+            'Sun Jan 5 01:01:01 1980': '1980-01-05',
+            'Mon Feb 6 01:01:01 1985': '1985-02-06',
+            'Tue Mar 7 01:01:01 1990': '1990-03-07',
+            'Wed Apr 8 01:01:01 1999': '1999-04-08',
+            'Thu May 9 01:01:01 2000': '2000-05-09',
+            'Fri Jun 10 01:01:01 2100': '2100-06-10',
+            'Sat Jul 2 10:11:12 1900': '1900-07-02',
+            'Sun Aug 1 00:00:00 1970': '1970-08-01',
+            'Mon Sep 9 23:36:00 2011': '2011-09-09',
+            'Tue Oct 10 01:01:01 2000': '2000-10-10',
+            'Wed Nov 22 19:43:01 2015': '2015-11-22',
+            'Thu Dec 31 00:00:00 2130': '2130-12-31',
+        }
+        for src, check in tests.items():
+            self.assertEqual(AWS4Auth.parse_date(src), check)
+
+    def test_parse_amzdate(self):
+        tests = {
+            '19800105T010101Z': '1980-01-05',
+            '19850206T010101Z': '1985-02-06',
+            '19900307T010101Z': '1990-03-07',
+            '19990408T010101Z': '1999-04-08',
+            '20000509T010101Z': '2000-05-09',
+            '21000610T010101Z': '2100-06-10',
+            '19000702T101112Z': '1900-07-02',
+            '19700801T000000Z': '1970-08-01',
+            '20110909T233600Z': '2011-09-09',
+            '20001010T010101Z': '2000-10-10',
+            '20151122T194301Z': '2015-11-22',
+            '21301231T000000Z': '2130-12-31',
+        }
+        for src, check in tests.items():
+            self.assertEqual(AWS4Auth.parse_date(src), check)
+
+    def test_parse_rfc3339(self):
+        tests = {
+            '1980-01-05': '1980-01-05',
+            '1985-02-06T01:01:01+01:00': '1985-02-06',
+            '1990-03-07t02:02:02-09:00': '1990-03-07',
+            '1999-04-08T03:03:03-00:00': '1999-04-08',
+            '2000-05-09t04:04:04Z': '2000-05-09',
+            '2100-06-10T05:05:05Z': '2100-06-10',
+            '1900-07-02T06:06:06Z': '1900-07-02',
+            '1970-08-01T07:07:07Z': '1970-08-01',
+            '2011-09-09T08:08:08Z': '2011-09-09',
+            '2000-10-10T09:09:09Z': '2000-10-10',
+            '2015-11-22T10:10:10Z': '2015-11-22',
+            '2130-12-31T11:11:11Z': '2130-12-31',
+        }
+        for src, check in tests.items():
+            self.assertEqual(AWS4Auth.parse_date(src), check)
+
+    def test_parse_bad_date(self):
+        for date_str in ['failfailfail', '', '111111111', '111-11-11']:
+            self.assertRaises(DateFormatError, AWS4Auth.parse_date, date_str)
+
+    def test_get_request_date__date_only(self):
+        tests = {
+            'Sun, 05 Jan 1980 01:01:01 GMT': (1980, 1, 5),
+            '19000404T010101Z': (1900, 4, 4),
+            'Monday, 06-Feb-85 01:01:01 EST': (2085, 2, 6),
+            'Sun Jan 5 01:01:01 1980': (1980, 1, 5),
+            '1985-02-06T01:01:01+01:00': (1985, 2, 6),
+        }
+        tests = dict([(k, datetime.date(*v)) for k, v in tests.items()])
+        for date_str, check in tests.items():
+            req = requests.Request('GET', 'http://blah.com')
+            req = req.prepare()
+            req.headers['date'] = date_str
+            result = AWS4Auth.get_request_date(req)
+            self.assertEqual(result, check, date_str)
+
+    def test_get_request_date__xamzdate_only(self):
+        date_str = '19000404T010101Z'
+        check = datetime.date(1900, 4, 4)
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        req.headers['x-amz-date'] = date_str
+        result = AWS4Auth.get_request_date(req)
+        self.assertEqual(result, check, date_str)
+
+    def test_get_request_date__check_prefer_xamzdate(self):
+        xamzdate_str = '19000404T010101Z'
+        check = datetime.date(1900, 4, 4)
+        date_str = 'Sun, 05 Jan 1980 01:01:01 GMT'
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        req.headers['x-amz-date'] = xamzdate_str
+        req.headers['date'] = date_str
+        result = AWS4Auth.get_request_date(req)
+        self.assertEqual(result, check)
+
+    def test_get_request_date__date_and_invalid_xamzdate(self):
+        xamzdate_str = '19000404X010101Z'
+        date_str = 'Sun, 05 Jan 1980 01:01:01 GMT'
+        check = datetime.date(1980, 1, 5)
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        req.headers['x-amz-date'] = xamzdate_str
+        req.headers['date'] = date_str
+        result = AWS4Auth.get_request_date(req)
+        self.assertEqual(result, check)
+
+    def test_get_request_date__no_headers(self):
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        check = None
+        result = AWS4Auth.get_request_date(req)
+        self.assertEqual(result, check)
+
+    def test_get_request_date__invalid_xamzdate(self):
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        req.headers['x-amz-date'] = ''
+        check = None
+        result = AWS4Auth.get_request_date(req)
+        self.assertEqual(result, check)
+
+    def test_get_request_date__invalid_date(self):
+        check = None
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        req.headers['date'] = ''
+        result = AWS4Auth.get_request_date(req)
+        self.assertEqual(result, check)
+
+    def test_get_request_date__invalid_both(self):
+        check = None
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        req.headers['x-amz-date'] = ''
+        req.headers['date'] = ''
+        result = AWS4Auth.get_request_date(req)
+        self.assertEqual(result, check)
+
+    def test_aws4auth_add_header(self):
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        if 'date' in req.headers: del req.headers['date']
+        secret_key = 'dummy'
+        region = 'us-east-1'
+        service = 'iam'
+        key = AWS4SigningKey(secret_key, region, service)
+        auth = AWS4Auth('dummy', key)
+        sreq = auth(req)
+        self.assertIn('x-amz-date', sreq.headers)
+        self.assertIsNotNone(AWS4Auth.get_request_date(sreq))
+
+
+class AWS4Auth_Regenerate_Signing_Key_Test(unittest.TestCase):
+
+    def setUp(self):
+        self.region = 'region'
+        self.service = 'service'
+        self.date = '19990101'
+        self.secret_key = 'secret_key'
+        self.access_id = 'access_id'
+        self.auth = AWS4Auth(self.access_id, self.secret_key, self.region,
+                             self.service, self.date)
+        self.sig_key_no_secret = AWS4SigningKey(self.secret_key,
+                                                self.region,
+                                                self.service,
+                                                self.date,
+                                                False)
+        self.auth_no_secret = AWS4Auth(self.access_id, self.sig_key_no_secret)
+
+    def test_regen_signing_key_no_secret_nosecretkey_raise(self):
+        auth = self.auth_no_secret
+        check_id = id(auth.signing_key)
+        self.assertRaises(NoSecretKeyError, auth.regenerate_signing_key)
+        self.assertEqual(id(auth.signing_key), check_id)
+
+    def test_regen_signing_key_no_key_nosecretkey_raise(self):
+        auth = self.auth
+        auth.signing_key = None
+        self.assertRaises(NoSecretKeyError, auth.regenerate_signing_key)
+        self.assertIsNone(auth.signing_key)
+
+    def test_regen_signing_key_new_key(self):
+        auth = self.auth
+        old_id = id(auth.signing_key)
+        auth.regenerate_signing_key()
+        self.assertNotEqual(old_id, id(auth.signing_key))
+
+    def test_regen_signing_key_inherit_previous_scope(self):
+        auth = self.auth
+        auth.regenerate_signing_key()
+        key = auth.signing_key
+        self.assertEqual(key.region, self.region)
+        self.assertEqual(key.service, self.service)
+        self.assertEqual(key.date, self.date)
+        self.assertEqual(key.secret_key, self.secret_key)
+        self.assertEqual(auth.region, self.region)
+        self.assertEqual(auth.service, self.service)
+        self.assertEqual(auth.date, self.date)
+
+    def test_regen_signing_key_use_override_args(self):
+        auth = self.auth
+        new_key = 'new_secret_key'
+        new_region = 'new_region'
+        new_service = 'new_service'
+        new_date = 'new_date'
+        auth.regenerate_signing_key(new_key, new_region, new_service,
+                                    new_date)
+        self.assertEqual(auth.signing_key.secret_key, new_key)
+        self.assertEqual(auth.signing_key.region, new_region)
+        self.assertEqual(auth.signing_key.service, new_service)
+        self.assertEqual(auth.signing_key.date, new_date)
+
+    def test_regen_signing_key_no_key_supplied_secret_key(self):
+        auth = self.auth
+        auth.signing_key = None
+        auth.regenerate_signing_key(self.secret_key)
+        self.assertEqual(auth.signing_key.secret_key, self.secret_key)
+        self.assertEqual(auth.signing_key.region, self.region)
+        self.assertEqual(auth.signing_key.service, self.service)
+        self.assertEqual(auth.signing_key.date, self.date)
+        self.assertTrue(auth.signing_key.store_secret_key)
 
 
 class AWS4Auth_EncodeBody_Test(unittest.TestCase):
@@ -375,6 +695,91 @@ class AWS4Auth_EncodeBody_Test(unittest.TestCase):
         AWS4Auth.encode_body(self.req)
         self.assertEqual(self.req.body, text)
         self.assertEqual(self.req.headers, {})
+
+class AWS4Auth_AmzCanonicalPath_Test(unittest.TestCase):
+
+    def setUp(self):
+        self.nons3auth = AWS4Auth('id', 'secret', 'us-east-1', 'es')
+        self.s3auth = AWS4Auth('id', 'secret', 'us-east-1', 's3')
+
+    def test_basic(self):
+        path = '/'
+        encoded = self.nons3auth.amz_cano_path(path)
+        self.assertEqual(encoded, path)
+
+    def test_handle_querystring(self):
+        path = '/test/index.html?param1&param2=blah*'
+        encoded = self.nons3auth.amz_cano_path(path)
+        self.assertEqual(encoded, path)
+
+    def test_handle_path_normalization(self):
+        path = '/./test/../stuff//more/'
+        expected = '/stuff/more/'
+        encoded = self.nons3auth.amz_cano_path(path)
+        self.assertEqual(encoded, expected)
+
+    def test_handle_basic_quoting(self):
+        path = '/test/hello-*.&^~+{}!$£_ '
+        expected = '/test/hello-%2A.%26%5E~%2B%7B%7D%21%24%C2%A3_%20'
+        encoded = self.nons3auth.amz_cano_path(path)
+        self.assertEqual(encoded, expected)
+
+    def test_handle_percent_encode_non_s3(self):
+        """
+        Test percent signs are themselves percent encoded for non-S3
+        services.
+
+        """
+        path = '/test/%2a%2b%25/~-_^& %%'
+        expected = '/test/%252a%252b%2525/~-_%5E%26%20%25%25'
+        auth = AWS4Auth('id', 'secret', 'us-east-1', 'es')
+        encoded = auth.amz_cano_path(path)
+        self.assertEqual(encoded, expected)
+
+    def test_handle_percent_encode_s3(self):
+        """
+        Test percents are handled correctly for S3. S3 expected the
+        path to be unquoted once before being quoted.
+
+        """
+        path = '/test/%2a%2b%25/~-_^& %%'
+        expected = '/test/%2A%2B%25/~-_%5E%26%20%25%25'
+        auth = AWS4Auth('id', 'secret', 'us-east-1', 's3')
+        encoded = auth.amz_cano_path(path)
+        self.assertEqual(encoded, expected)
+
+
+class AWS4Auth_AmzCanonicalQuerystring_Test(unittest.TestCase):
+
+    def setUp(self):
+        self.auth = AWS4Auth('id', 'secret', 'us-east-1', 'es')
+
+    def test_basic(self):
+        qs = 'greet=hello'
+        encoded = self.auth.amz_cano_querystring(qs)
+        self.assertEqual(encoded, qs)
+
+    def test_multiple_params(self):
+        qs = 'greet=hello&impression=wtf'
+        encoded = self.auth.amz_cano_querystring(qs)
+        self.assertEqual(encoded, qs)
+
+    def test_space(self):
+        """
+        Test space in the querystring. See post-vanilla-query-space test in the
+        downloadable amz testsuite for expected behaviour.
+
+        """
+        qs = 'greet=hello&impression =wtf'
+        expected = 'greet=hello&impression='
+        encoded = self.auth.amz_cano_querystring(qs)
+        self.assertEqual(encoded, expected)
+
+    def test_quoting(self):
+        qs = 'greet=hello&impression=!#"£$%^*()-_@~{},.<>/\\'
+        expected = 'greet=hello&impression=%21%23%22%C2%A3%24%25%5E%2A%28%29-_%40~%7B%7D%2C.%3C%3E%2F%5C'
+        encoded = self.auth.amz_cano_querystring(qs)
+        self.assertEqual(encoded, expected)
 
 
 class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
@@ -525,11 +930,11 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
         http://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
 
         """
-        access_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
+        secret_key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
         region = 'us-east-1'
         service = 'iam'
         date = '20110909'
-        key = AWS4SigningKey(access_key, region, service, date)
+        key = AWS4SigningKey(secret_key, region, service, date)
         req_text = [
             'POST https://iam.amazonaws.com/ HTTP/1.1',
             'Host: iam.amazonaws.com',
@@ -563,6 +968,35 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
         sreq = auth(preq)
         self.assertEqual(sreq.body, None)
 
+    def test_regen_key_on_date_mismatch(self):
+        vals = [('20001231T235959Z', '20010101'),
+                ('20000101T010101Z', '20000102'),
+                ('19900101T010101Z', '20000101')]
+        for amzdate, scope_date in vals:
+            req = requests.Request('GET', 'http://blah.com')
+            req = req.prepare()
+            if 'date' in req.headers: del req.headers['date']
+            req.headers['x-amz-date'] = amzdate
+            secret_key = 'dummy'
+            region = 'us-east-1'
+            service = 'iam'
+            date = scope_date
+            key = AWS4SigningKey(secret_key, region, service, date)
+            orig_id = id(key)
+            auth = AWS4Auth('dummy', key)
+            sreq = auth(req)
+            self.assertNotEqual(id(auth.signing_key), orig_id)
+            self.assertEqual(auth.date, amzdate.split('T')[0])
+
+    def test_date_mismatch_nosecretkey_raise(self):
+        key = AWS4SigningKey('secret_key', 'region', 'service', '1999010', False)
+        auth = AWS4Auth('access_id', key)
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        if 'date' in req.headers: del req.headers['date']
+        req.headers['x-amz-date'] = '20000101T010101Z'
+        self.assertRaises(NoSecretKeyError, auth, req)
+
     @unittest.skipIf(amz_aws4_testsuite is None, 'aws4_testsuite unavailable,'
                      ' download it from http://docs.aws.amazon.com/general/la'
                      'test/gr/samples/aws4_testsuite.zip')
@@ -585,7 +1019,7 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
         hsh = hashlib.sha256(req.body or b'')
         req.headers['x-amz-content-sha256'] = hsh.hexdigest()
         req.headers['x-amz-date'] = amz_aws4_testsuite.timestamp
-        key = AWS4SigningKey(amz_aws4_testsuite.access_key,
+        key = AWS4SigningKey(amz_aws4_testsuite.secret_key,
                              amz_aws4_testsuite.region,
                              amz_aws4_testsuite.service,
                              amz_aws4_testsuite.date)
@@ -597,7 +1031,7 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
         self.assertEqual(auth_hdr, group['.authz'], msg=msg)
 
 
-@unittest.skipIf(live_access_id is None or live_access_key is None,
+@unittest.skipIf(live_access_id is None or live_secret_key is None,
                  'AWS_ACCESS_ID and AWS_ACCESS_KEY environment variables not'
                  ' set, skipping live service tests')
 class AWS4Auth_LiveService_Test(unittest.TestCase):
@@ -763,7 +1197,7 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         service = path_qs.split('.')[0]
         url = 'https://' + path_qs
         region = 'us-east-1'
-        auth = AWS4Auth(live_access_id, live_access_key, region, service)
+        auth = AWS4Auth(live_access_id, live_secret_key, region, service)
         response = requests.request(method, url, auth=auth,
                                     data=body, headers=headers)
         # suppress socket close warnings
@@ -774,9 +1208,9 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         url = 'https://mobileanalytics.us-east-1.amazonaws.com/2014-06-05/events'
         service = 'mobileanalytics'
         region = 'us-east-1'
-        dt = datetime.utcnow()
+        dt = datetime.datetime.utcnow()
         date = dt.strftime('%Y%m%d')
-        sig_key = AWS4SigningKey(live_access_key, region, service, date)
+        sig_key = AWS4SigningKey(live_secret_key, region, service, date)
         auth = AWS4Auth(live_access_id, sig_key)
         headers = {'Content-Type': 'application/json',
                    'X-Amz-Date': dt.strftime('%Y%m%dT%H%M%SZ'),
@@ -797,4 +1231,6 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
 
 
 if __name__ == '__main__':
+#     unittest.main(verbosity=2, defaultTest='AWS4Auth_Instantiate_Test')
+#     unittest.main(verbosity=2, defaultTest='AWS4Auth_RequestSign_Test')
     unittest.main(verbosity=2)
