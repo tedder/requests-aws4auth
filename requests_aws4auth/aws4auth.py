@@ -15,7 +15,7 @@ import hashlib
 import posixpath
 import re
 import shlex
-from datetime import datetime
+import datetime
 
 try:
     from urllib.parse import urlparse, parse_qs, quote, unquote
@@ -24,16 +24,18 @@ except ImportError:
     from urllib import quote, unquote
 
 from requests.auth import AuthBase
-from .six import PY2, text_type, u
+from .six import PY2, text_type
 from .aws4signingkey import AWS4SigningKey
+from .exceptions import DateMismatchError, NoSecretKeyError, DateFormatError
 
 
 class AWS4Auth(AuthBase):
     """
-    Requests authentication class for providing AWS version 4 authentication
-    for HTTP requests.
+    Requests authentication class providing AWS version 4 authentication for
+    HTTP requests. Implements header-based authentication only, GET URL
+    parameter and POST parameter authentication are not supported.
 
-    Provides basic authentication for regions and services listed at:
+    Provides authentication for regions and services listed at:
     http://docs.aws.amazon.com/general/latest/gr/rande.html
 
     The following services do not support AWS auth version 4 and are not usable
@@ -49,84 +51,239 @@ class AWS4Auth(AuthBase):
 
     Basic usage
     -----------
-
     >>> import requests
     >>> from requests_aws4auth import AWS4Auth
     >>> auth = AWS4Auth('<ACCESS ID>', '<ACCESS KEY>', 'eu-west-1', 's3')
     >>> endpoint = 'http://s3-eu-west-1.amazonaws.com'
     >>> response = requests.get(endpoint, auth=auth)
-    >>> response.status_code
-    200
+    >>> response.text
+    <?xml version="1.0" encoding="UTF-8"?>
+        <ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01">
+            <Owner>
+            <ID>bcaf1ffd86f461ca5fb16fd081034f</ID>
+            <DisplayName>webfile</DisplayName>
+            ...
 
     This example lists your buckets in the eu-west-1 region of the Amazon S3
     service.
 
+    Date handling
+    -------------
+    If an HTTP request to be authenticated contains a Date or X-Amz-Date
+    header, AWS will only accept authorisation if the date in the header
+    matches the scope date of the signing key (see
+    http://docs.aws.amazon.com/general/latest/gr/sigv4-date-handling.html).
+
+    From version 0.8 of requests-aws4auth, if the header date does not match
+    the scope date, the AWS4Auth class will automatically regenerate its
+    signing key, using the same scope parameters as the previous key except for
+    the date, which will be changed to match the request date. (If a request
+    does not include a date, the current date is added to the request in an
+    X-Amz-Date header).
+
+    The new behaviour from version 0.8 has implications for thread safety and
+    secret key security, see the "Automatic key regeneration", "Secret key
+    storage" and "Multithreading" sections below.
+
+    This also means that AWS4Auth is now attempting to parse and extract dates
+    from the values in X-Amz-Date and Date headers. Supported date formats are:
+
+        * RFC 7231 (e.g. Mon, 09 Sep 2011 23:36:00 GMT)
+        * RFC 850 (e.g. Sunday, 06-Nov-94 08:49:37 GMT)
+        * C time (e.g. Wed Dec 4 00:00:00 2002)
+        * Amz-Date format (e.g. 20090325T010101Z)
+        * ISO 8601 / RFC 3339 (e.g. 2009-03-25T10:11:12.13-01:00)
+
+    If either header is present but AWS4Auth cannot extract a date because all
+    present date headers are in an unrecognisable format, AWS4Auth will delete
+    any X-Amz-Date and Date headers present and replace with a single
+    X-Amz-Date header containing the current date. This behaviour can be
+    modified using the 'raise_invalid_date' keyword argument of the AWS4Auth
+    constructor.
+
+    Automatic key regeneration
+    --------------------------
+    If you do not want the signing key to be automatically regenerated when a
+    mismatch between the request date and the scope date is encountered, use
+    the alternative StrictAWS4Auth class, which is identical to AWS4Auth except
+    that upon encountering a date mismatch it just raises a DateMismatchError.
+    You can also use the PassiveAWS4Auth class, which mimics the AWS4Auth
+    behaviour prior to version 0.8 and just signs and sends the request,
+    whether the date matches or not. In this case it is up to the calling code
+    to handle an authentication failure response from AWS caused by a date
+    mismatch.
+
+    Secret key storage
+    ------------------
+    To allow automatic key regeneration, the secret key is stored in the
+    AWS4Auth instance, in the signing key object. If you do not want this to
+    occur, instantiate the instance using an AWS4Signing key which was created
+    with the store_secret_key parameter set to False:
+
+    >>> sig_key = AWS4SigningKey(secret_key, region, service, date, False)
+    >>> auth = StrictAWS4Auth(access_id, sig_key)
+
+    The AWS4Auth class will then raise a NoSecretKeyError when it attempts to
+    regenerate its key. A slightly more conceptually elegant way to handle this
+    is to use the alternative StrictAWS4Auth class, again instantiating it with
+    an AWS4SigningKey instance created with store_secret_key = False.
+
+    Multithreading
+    --------------
+    If you share AWS4Auth (or even StrictAWS4Auth) instances between threads
+    you are likely to encounter problems. Because AWS4Auth instances may
+    unpredictably regenerate their signing key as part of signing a request,
+    threads using the same instance may find the key changed by another thread
+    halfway through the signing process, which may result in undefined
+    behaviour.
+
+    It may be possible to rig up a workable instance sharing mechanism using
+    locking primitives and the StrictAWS4Auth class, however this poor author
+    can't think of a scenario which works safely yet doesn't suffer from at
+    some point blocking all threads for at least the duration of an HTTP
+    request, which could be several seconds. If several requests come in in
+    close succession which all require key regenerations then the system could
+    be forced into serial operation for quite a length of time.
+
+    In short, it's best to create a thread-local instance of AWS4Auth for each
+    thread that needs to do authentication.
+
     Class attributes
     ----------------
-
     AWS4Auth.access_id   -- the access ID supplied to the instance
     AWS4Auth.region      -- the AWS region for the instance
     AWS4Auth.service     -- the endpoint code for the service for this instance
+    AWS4Auth.date        -- the date the instance is valid for
     AWS4Auth.signing_key -- instance of AWS4SigningKey used for this instance,
                             either generated from the supplied parameters or
                             supplied directly on the command line
 
-   """
-
-    default_include_headers = ['host', 'content-type', 'x-amz-*']
+    """
+    default_include_headers = ['host', 'content-type', 'date', 'x-amz-*']
 
     def __init__(self, *args, **kwargs):
         """
-        AWS4Auth instances can be created by supplying scoping parameters
-        directly or by using a pre-generated signing key:
+        AWS4Auth instances can be created by supplying key scope parameters
+        directly or by using an AWS4SigningKey instance:
 
-        >>> auth = AWS4Auth(access_id, access_key, region, service)
+        >>> auth = AWS4Auth(access_id, secret_key, region, service
+        ...                 [, date][, raise_invalid_date=False])
 
           or
 
-        >>> auth = AWS4Auth(access_id, signing_key)
+        >>> auth = AWS4Auth(access_id, signing_key[, raise_invalid_date=False])
 
-        access_id  -- This is your AWS access ID
-        access_key -- This is your AWS access key
-        region     -- The region you're connecting to, as per this list at
-                      http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
-                      e.g. us-east-1. For services which don't require a region
-                      (e.g. IAM), use us-east-1.
-        service    -- The name of the service you're connecting to, as per
-                      endpoints at:
-                      http://docs.aws.amazon.com/general/latest/gr/rande.html
-                      e.g. elasticbeanstalk.
-        signing_key - An AWS4SigningKey instance.
+        access_id   -- This is your AWS access ID
+        secret_key  -- This is your AWS secret access key
+        region      -- The region you're connecting to, as per the list at
+                       http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
+                       e.g. us-east-1. For services which don't require a region
+                       (e.g. IAM), use us-east-1.
+        service     -- The name of the service you're connecting to, as per
+                       endpoints at:
+                       http://docs.aws.amazon.com/general/latest/gr/rande.html
+                       e.g. elasticbeanstalk.
+        date        -- Date this instance is valid for. 8-digit date as str of the
+                       form YYYYMMDD. Key is only valid for requests with a
+                       Date or X-Amz-Date header matching this date. If date is
+                       not supplied the current date is used.
+        signing_key -- An AWS4SigningKey instance.
+        raise_invalid_date
+                    -- Must be supplied as keyword argument. AWS4Auth tries to
+                       parse a date from the X-Amz-Date and Date headers of the
+                       request, first trying X-Amz-Date, and then Date if
+                       X-Amz-Date is not present or is in an unrecognised
+                       format. If one or both of the two headers are present
+                       yet neither are in a format which AWS4Auth recognises
+                       then it will remove both headers and replace with a new
+                       X-Amz-Date header using the current date.
 
-        All arguments except signing_key should be supplied as strings.
+                       If this behaviour is not wanted, set the
+                       raise_invalid_date keyword argument to True, and
+                       instead an InvalidDateError will be raised when neither
+                       date is recognised. If neither header is present at all
+                       then an X-Amz-Date header will still be added containing
+                       the current date.
+
+                       See the AWS4Auth class docstring for supported date
+                       formats.
 
         """
         l = len(args)
-        if l not in [2, 4]:
-            msg = 'AWS4Auth() takes 2 or 4 arguments, {} given'.format(l)
+        if l not in [2, 4, 5]:
+            msg = 'AWS4Auth() takes 2, 4 or 5 arguments, {} given'.format(l)
             raise TypeError(msg)
         self.access_id = args[0]
-        if isinstance(args[1], AWS4SigningKey) and len(args) == 2:
+        if isinstance(args[1], AWS4SigningKey) and l == 2:
             # instantiate from signing key
-            key = args[1]
-            self.region = key.region
-            self.service = key.service
-            self.signing_key = key
-        elif len(args) == 4:
+            self.signing_key = args[1]
+            self.region = self.signing_key.region
+            self.service = self.signing_key.service
+            self.date = self.signing_key.date
+        elif l in [4, 5]:
             # instantiate from args
-            access_key = args[1]
+            secret_key = args[1]
             self.region = args[2]
             self.service = args[3]
-            self.signing_key = AWS4SigningKey(access_key,
-                                              self.region,
-                                              self.service)
+            self.date = args[4] if l == 5 else None
+            self.signing_key = None
+            self.regenerate_signing_key(secret_key=secret_key)
         else:
             raise TypeError()
-        if 'include_hdrs' in kwargs:
-            self.include_hdrs = kwargs[str('include_hdrs')]
+
+        raise_invalid_date = kwargs.get('raise_invalid_date', False)
+        if raise_invalid_date in [True, False]:
+            self.raise_invalid_date = raise_invalid_date
         else:
-            self.include_hdrs = self.default_include_headers
+            raise ValueError('raise_invalid_date must be True or False in AWS4Auth.__init__()')
+
+        self.include_hdrs = kwargs.get('include_hdrs',
+                                       self.default_include_headers)
         AuthBase.__init__(self)
+
+    def regenerate_signing_key(self, secret_key=None, region=None,
+                               service=None, date=None):
+        """
+        Regenerate the signing key for this instance. Store the new key in
+        signing_key property.
+
+        Take scope elements of the new key from the equivalent properties
+        (region, service, date) of the current AWS4Auth instance. Scope
+        elements can be overridden for the new key by supplying arguments to
+        this function. If overrides are supplied update the current AWS4Auth
+        instance's equivalent properties to match the new values.
+
+        If secret_key is not specified use the value of the secret_key property
+        of the current AWS4Auth instance's signing key. If the existing signing
+        key is not storing its secret key (i.e. store_secret_key was set to
+        False at instantiation) then raise a NoSecretKeyError and do not
+        regenerate the key. In order to regenerate a key which is not storing
+        its secret key, secret_key must be supplied to this function.
+
+        Use the value of the existing key's store_secret_key property when
+        generating the new key. If there is no existing key, then default
+        to setting store_secret_key to True for new key.
+
+        """
+        if secret_key is None and (self.signing_key is None or
+                                   self.signing_key.secret_key is None):
+            raise NoSecretKeyError
+
+        secret_key = secret_key or self.signing_key.secret_key
+        region = region or self.region
+        service = service or self.service
+        date = date or self.date
+        if self.signing_key is None:
+            store_secret_key = True
+        else:
+            store_secret_key = self.signing_key.store_secret_key
+
+        self.signing_key = AWS4SigningKey(secret_key, region, service, date,
+                                          store_secret_key)
+
+        self.region = region
+        self.service = service
+        self.date = self.signing_key.date
 
     def __call__(self, req):
         """
@@ -134,7 +291,11 @@ class AWS4Auth(AuthBase):
         requests.
 
         Add x-amz-content-sha256 and Authorization headers to the request. Add
-        x-amz-date header to request if not already present.
+        x-amz-date header to request if not already present and req does not
+        contain a Date header.
+
+        Check request date matches date in the current signing key. If not,
+        regenerate signing key to match request date.
 
         If request body is not already encoded to bytes, encode to charset
         specified in Content-Type header, or UTF-8 if not specified.
@@ -142,17 +303,29 @@ class AWS4Auth(AuthBase):
         req -- Requests PreparedRequest object
 
         """
+        # check request date matches scope date
+        req_date = self.get_request_date(req)
+        if req_date is None:
+            # no date headers or none in recognisable format
+            # replace them with x-amz-header with current date and time
+            if 'date' in req.headers: del req.headers['date']
+            if 'x-amz-date' in req.headers: del req.headers['x-amz-date']
+            now = datetime.datetime.utcnow()
+            req_date = now.date()
+            req.headers['x-amz-date'] = now.strftime('%Y%m%dT%H%M%SZ')
+        req_scope_date = req_date.strftime('%Y%m%d')
+        if req_scope_date != self.date:
+            self.handle_date_mismatch(req)
+
+        # encode body and generate body hash
         if hasattr(req, 'body') and req.body is not None:
             self.encode_body(req)
             content_hash = hashlib.sha256(req.body)
         else:
             content_hash = hashlib.sha256(b'')
-
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
 
-        if 'x-amz-date' not in req.headers:
-            timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
-            req.headers['x-amz-date'] = timestamp
+        # generate signature
         result = self.get_canonical_headers(req, self.include_hdrs)
         cano_headers, signed_headers = result
         cano_req = self.get_canonical_request(req, cano_headers,
@@ -169,12 +342,113 @@ class AWS4Auth(AuthBase):
         req.headers['Authorization'] = auth_str
         return req
 
+    @classmethod
+    def get_request_date(cls, req):
+        """
+        Try to pull a date from the request by looking first at the
+        x-amz-date header, and if that's not present then the Date header.
+
+        Return a datetime.date object, or None if neither date header
+        is found or is in a recognisable format.
+
+        req -- a requests PreparedRequest object
+
+        """
+        date = None
+        for header in ['x-amz-date', 'date']:
+            if header not in req.headers:
+                continue
+            try:
+                date_str = cls.parse_date(req.headers[header])
+            except DateFormatError:
+                continue
+            try:
+                date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                continue
+            else:
+                break
+
+        return date
+
+    @staticmethod
+    def parse_date(date_str):
+        """
+        Check if date_str is in a recognised format and return an ISO
+        yyyy-mm-dd format version if so. Raise DateFormatError if not.
+
+        Recognised formats are:
+        * RFC 7231 (e.g. Mon, 09 Sep 2011 23:36:00 GMT)
+        * RFC 850 (e.g. Sunday, 06-Nov-94 08:49:37 GMT)
+        * C time (e.g. Wed Dec 4 00:00:00 2002)
+        * Amz-Date format (e.g. 20090325T010101Z)
+        * ISO 8601 / RFC 3339 (e.g. 2009-03-25T10:11:12.13-01:00)
+
+        date_str -- Str containing a date and optional time
+
+        """
+        months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug',
+                  'sep', 'oct', 'nov', 'dec']
+        formats = {
+            # RFC 7231, e.g. 'Mon, 09 Sep 2011 23:36:00 GMT'
+            r'^(?:\w{3}, )?(\d{2}) (\w{3}) (\d{4})\D.*$':
+                lambda m: '{}-{:02d}-{}'.format(
+                                          m.group(3),
+                                          months.index(m.group(2).lower())+1,
+                                          m.group(1)),
+            # RFC 850 (e.g. Sunday, 06-Nov-94 08:49:37 GMT)
+            # assumes current century
+            r'^\w+day, (\d{2})-(\w{3})-(\d{2})\D.*$':
+                lambda m: '{}{}-{:02d}-{}'.format(
+                                            str(datetime.date.today().year)[:2],
+                                            m.group(3),
+                                            months.index(m.group(2).lower())+1,
+                                            m.group(1)),
+            # C time, e.g. 'Wed Dec 4 00:00:00 2002'
+            r'^\w{3} (\w{3}) (\d{1,2}) \d{2}:\d{2}:\d{2} (\d{4})$':
+                lambda m: '{}-{:02d}-{:02d}'.format(
+                                              m.group(3),
+                                              months.index(m.group(1).lower())+1,
+                                              int(m.group(2))),
+            # x-amz-date format dates, e.g. 20100325T010101Z
+            r'^(\d{4})(\d{2})(\d{2})T\d{6}Z$':
+                lambda m: '{}-{}-{}'.format(*m.groups()),
+            # ISO 8601 / RFC 3339, e.g. '2009-03-25T10:11:12.13-01:00'
+            r'^(\d{4}-\d{2}-\d{2})(?:[Tt].*)?$':
+                lambda m: m.group(1),
+        }
+
+        out_date = None
+        for regex, xform in formats.items():
+            m = re.search(regex, date_str)
+            if m:
+                out_date = xform(m)
+                break
+        if out_date is None:
+            raise DateFormatError
+        else:
+            return out_date
+
+    def handle_date_mismatch(self, req):
+        """
+        Handle a request whose date doesn't match the signing key scope date.
+
+        This AWS4Auth class implementation regenerates the signing key. See
+        StrictAWS4Auth class if you would prefer an exception to be raised.
+
+        req -- a requests prepared request object
+
+        """
+        req_datetime = self.get_request_date(req)
+        new_key_date = req_datetime.strftime('%Y%m%d')
+        self.regenerate_signing_key(date=new_key_date)
+
     @staticmethod
     def encode_body(req):
         """
         Encode body of request to bytes and update content-type if required.
 
-        If the body of req is unicode then encode to the charset found in
+        If the body of req is Unicode then encode to the charset found in
         content-type header if present, otherwise UTF-8, or ASCII if
         content-type is application/x-www-form-urlencoded. If encoding to UTF-8
         then add charset to content-type. Modifies req directly, does not
@@ -297,7 +571,8 @@ class AWS4Auth(AuthBase):
         """
         Generate the canonical path as per AWS4 auth requirements.
 
-        Not documented anywhere, determined from aws4_testsuite examples.
+        Not documented anywhere, determined from aws4_testsuite examples,
+        problem reports and testing against the live services.
 
         path -- request path
 
@@ -375,3 +650,51 @@ class AWS4Auth(AuthBase):
 
         """
         return ' '.join(shlex.split(text, posix=False))
+
+
+class StrictAWS4Auth(AWS4Auth):
+    """
+    Instances of this subclass will not automatically regenerate their signing
+    keys when asked to sign a request whose date does not match the scope date
+    of the signing key. Instances will instead raise a DateMismatchError.
+
+    Keys of StrictAWSAuth instances can be regenerated manually by calling the
+    regenerate_signing_key() method.
+
+    Keys will still store the secret key by default. If this is not desired
+    then create the instance by passing an AWS4SigningKey created with
+    store_secret_key set to False to the StrictAWS4AUth constructor:
+
+    >>> sig_key = AWS4SigningKey(secret_key, region, service, date, False)
+    >>> auth = StrictAWS4Auth(access_id, sig_key)
+
+    """
+
+    def handle_date_mismatch(self, req):
+        """
+        Handle a request whose date doesn't match the signing key process, by
+        raising a DateMismatchError.
+
+        Overrides the default behaviour of AWS4Auth where the signing key
+        is automatically regenerated to match the request date
+
+        To update the signing key if this is hit, call
+        StrictAWS4Auth.regenerate_signing_key().
+
+        """
+        raise DateMismatchError
+
+
+class PassiveAWS4Auth(AWS4Auth):
+    """
+    This subclass does not perform any special handling of a mismatched request
+    and scope date, it signs the request and allows Requests to send it. It is
+    up to the calling code to handle a failed authentication response from AWS.
+
+    This behaviour mimics the behaviour of AWS4Auth for versions 0.7 and
+    earlier.
+
+    """
+
+    def handle_date_mismatch(self, req):
+        pass
