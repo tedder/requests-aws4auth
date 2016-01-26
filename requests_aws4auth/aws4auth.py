@@ -167,7 +167,7 @@ class AWS4Auth(AuthBase):
         directly or by using an AWS4SigningKey instance:
 
         >>> auth = AWS4Auth(access_id, secret_key, region, service
-        ...                 [, date][, raise_invalid_date=False])
+        ...                 [, date][, raise_invalid_date=False][, session_token=None])
 
           or
 
@@ -207,6 +207,10 @@ class AWS4Auth(AuthBase):
 
                        See the AWS4Auth class docstring for supported date
                        formats.
+        session_token
+                    -- Must be supplied as keyword argument. If session_token
+                       is set, then it is used for the x-amz-security-token
+                       header, for use with STS temporary credentials.
 
         """
         l = len(args)
