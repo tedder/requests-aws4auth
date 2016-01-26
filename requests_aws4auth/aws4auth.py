@@ -237,9 +237,11 @@ class AWS4Auth(AuthBase):
         else:
             raise ValueError('raise_invalid_date must be True or False in AWS4Auth.__init__()')
 
+        self.session_token = kwargs.get('session_token')
+        if self.session_token:
+            self.default_include_headers.append('x-amz-security-token')
         self.include_hdrs = kwargs.get('include_hdrs',
                                        self.default_include_headers)
-        self.sessionToken = kwargs.get('session_token')
         AuthBase.__init__(self)
 
     def regenerate_signing_key(self, secret_key=None, region=None,
@@ -325,8 +327,8 @@ class AWS4Auth(AuthBase):
         else:
             content_hash = hashlib.sha256(b'')
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
-        if self.sessionToken:
-            req.headers['x-amz-security-token'] = self.sessionToken
+        if self.session_token:
+            req.headers['x-amz-security-token'] = self.session_token
 
         # generate signature
         result = self.get_canonical_headers(req, self.include_hdrs)
