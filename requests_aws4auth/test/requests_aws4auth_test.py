@@ -1145,7 +1145,7 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         'EC2': 'ec2.us-east-1.amazonaws.com/?Action=DescribeRegions&Version=2014-06-15',
         'EC2 Container Service': 'ecs.us-east-1.amazonaws.com/?Action=ListClusters&Version=2014-11-13',
         'Elastic Load Balancing': 'elasticloadbalancing.us-east-1.amazonaws.com/?Action=DescribeLoadBalancers&Version=2012-06-01',
-        'Elastic MapReduce': 'elasticmapreduce.us-east-1.amazonaws.com/?Action=DescribeJobFlows&Version=2009-03-31',
+        'Elastic MapReduce': 'elasticmapreduce.us-east-1.amazonaws.com/?Action=ListClusters&Version=2009-03-31',
         'Elastic Transcoder': 'elastictranscoder.us-east-1.amazonaws.com/2012-09-25/pipelines',
         'Glacier': {
             'req': 'glacier.us-east-1.amazonaws.com/-/vaults',
