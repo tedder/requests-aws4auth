@@ -231,8 +231,8 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         Will be removed when deprecated amz_date attribute is removed
 
         """
-        with warnings.catch_warnings() as w:
-            warnings.simplefilter("ignore")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
             test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
             obj = AWS4SigningKey('secret_key', 'region', 'service')
             if obj.amz_date != test_date:
@@ -244,10 +244,17 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         Will be removed when deprecated amz_date attribute is removed
 
         """
+        warnings.resetwarnings()
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("ignore")
             obj = AWS4SigningKey('secret_key', 'region', 'service')
-            self.assertWarns(DeprecationWarning, getattr, obj, 'amz_date')
+            if PY2:
+                warnings.simplefilter('always')
+                obj.amz_date
+                self.assertEqual(len(w), 1)
+                self.assertEqual(w[-1].category, DeprecationWarning)
+            else:
+                warnings.simplefilter('ignore')
+                self.assertWarns(DeprecationWarning, getattr, obj, 'amz_date')
 
     def test_sign_sha256_unicode_msg(self):
         key = b'The quick brown fox jumps over the lazy dog'
@@ -354,9 +361,9 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
         self.assertIsInstance(auth.signing_key, AWS4SigningKey)
         self.assertEqual(auth.signing_key.region, 'region')
         self.assertEqual(auth.signing_key.service, 'service')
-        if test_date != auth.signing_key.amz_date:
+        if test_date != auth.signing_key.date:
             test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
-        self.assertEqual(auth.signing_key.amz_date, test_date)
+        self.assertEqual(auth.signing_key.date, test_date)
         expected = '{}/region/service/aws4_request'.format(test_date)
         self.assertEqual(auth.signing_key.scope, expected)
 
