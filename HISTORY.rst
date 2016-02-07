@@ -1,12 +1,27 @@
 Release History
 ---------------
 
+0.9 (2016-02-07)
+++++++++++++++++
+
+**New features**
+
+- Support for STS temporary credentials. Thanks to https://github.com/magdalene
+
+**Tests**
+
+- Tests for the STS temporary credentials functionality
+- Fixed AWS4SigningKey.amz_date deprecation warning test
+- Elastic MapReduce live service test no longer using deprecated
+  DescribeJobFlows action
+
+
 0.8 (2015-12-31)
 ++++++++++++++++
 
 This version introduces some behaviour changes designed to reduce the legwork
-needed when a signing key goes out of date. This has implications for multithreading
-and secret key storage. See the README for further details.
+needed when a signing key goes out of date. This has implications for
+multithreading and secret key storage. See the README for further details.
 
 **New features**
 
