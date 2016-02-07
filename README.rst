@@ -17,6 +17,7 @@ Features
 * Requests authentication for all AWS services that support AWS auth v4
 * Independent signing key objects
 * Automatic regeneration of keys when scope date boundary is passed 
+* Support for STS temporary credentials
 
 Implements header-based authentication, GET URL parameter and POST parameter
 authentication are not supported.
@@ -87,7 +88,8 @@ S3 service.
 STS Temporary Credentials
 -------------------------
 .. code-block:: python
-    >>> import requests
+
+    >>> from requests_aws4auth import AWS4Auth
     >>> auth = AWS4Auth('<ACCESS ID>', '<ACCESS KEY>', 'eu-west-1', 's3',
                         session_token='<SESSION TOKEN>')
     ...
@@ -198,5 +200,5 @@ Unsupported AWS features / todo
 -------------------------------
 * Currently does not support Amazon S3 chunked uploads
 * Tests for new AWS services
-* Requires Requests library to be present even if only using
+* Requires Requests library to be present even if only using AWS4SigningKey
 * Coherent documentation

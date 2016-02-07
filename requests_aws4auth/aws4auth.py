@@ -67,6 +67,19 @@ class AWS4Auth(AuthBase):
     This example lists your buckets in the eu-west-1 region of the Amazon S3
     service.
 
+    STS Temporary Credentials
+    -------------------------
+    >>> from requests_aws4auth import AWS4Auth
+    >>> auth = AWS4Auth('<ACCESS ID>', '<ACCESS KEY>', 'eu-west-1', 's3',
+                        session_token='<SESSION TOKEN>')
+    ...
+
+    This example shows how to construct an AWS4Auth object for use with STS
+    temporary credentials. The ``x-amz-security-token`` header is added with
+    the session token. Temporary credential timeouts are not managed -- in
+    case the temporary credentials expire, they need to be re-generated and
+    the AWS4Auth object re-constructed with the new credentials.
+
     Date handling
     -------------
     If an HTTP request to be authenticated contains a Date or X-Amz-Date
