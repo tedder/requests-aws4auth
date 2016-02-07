@@ -167,7 +167,7 @@ class AWS4Auth(AuthBase):
         directly or by using an AWS4SigningKey instance:
 
         >>> auth = AWS4Auth(access_id, secret_key, region, service
-        ...                 [, date][, raise_invalid_date=False])
+        ...                 [, date][, raise_invalid_date=False][, session_token=None])
 
           or
 
@@ -207,6 +207,10 @@ class AWS4Auth(AuthBase):
 
                        See the AWS4Auth class docstring for supported date
                        formats.
+        session_token
+                    -- Must be supplied as keyword argument. If session_token
+                       is set, then it is used for the x-amz-security-token
+                       header, for use with STS temporary credentials.
 
         """
         l = len(args)
@@ -237,6 +241,9 @@ class AWS4Auth(AuthBase):
         else:
             raise ValueError('raise_invalid_date must be True or False in AWS4Auth.__init__()')
 
+        self.session_token = kwargs.get('session_token')
+        if self.session_token:
+            self.default_include_headers.append('x-amz-security-token')
         self.include_hdrs = kwargs.get('include_hdrs',
                                        self.default_include_headers)
         AuthBase.__init__(self)
@@ -324,6 +331,8 @@ class AWS4Auth(AuthBase):
         else:
             content_hash = hashlib.sha256(b'')
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
+        if self.session_token:
+            req.headers['x-amz-security-token'] = self.session_token
 
         # generate signature
         result = self.get_canonical_headers(req, self.include_hdrs)
