@@ -9,6 +9,7 @@ Features
 * Requests authentication for all AWS services that support AWS auth v4
 * Independent signing key objects
 * Automatic regeneration of keys when scope date boundary is passed
+* Support for STS temporary credentials
 
 Implements header-based authentication, GET URL parameter and POST parameter
 authentication are not supported.
@@ -75,6 +76,21 @@ Basic usage
 
 This example would list your buckets in the ``eu-west-1`` region of the Amazon
 S3 service.
+
+STS Temporary Credentials
+-------------------------
+.. code-block:: python
+
+    >>> from requests_aws4auth import AWS4Auth
+    >>> auth = AWS4Auth('<ACCESS ID>', '<ACCESS KEY>', 'eu-west-1', 's3',
+                        session_token='<SESSION TOKEN>')
+    ...
+
+This example shows how to construct an AWS4Auth object for use with STS
+temporary credentials. The ``x-amz-security-token`` header is added with
+the session token. Temporary credential timeouts are not managed -- in
+case the temporary credentials expire, they need to be re-generated and
+the AWS4Auth object re-constructed with the new credentials.
 
 Date handling
 -------------
@@ -192,4 +208,4 @@ del aws4auth
 del aws4signingkey
 del exceptions
 
-__version__ = '0.8'
+__version__ = '0.9'

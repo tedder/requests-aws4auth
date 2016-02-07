@@ -231,8 +231,8 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         Will be removed when deprecated amz_date attribute is removed
 
         """
-        with warnings.catch_warnings() as w:
-            warnings.simplefilter("ignore")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
             test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
             obj = AWS4SigningKey('secret_key', 'region', 'service')
             if obj.amz_date != test_date:
@@ -244,10 +244,17 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         Will be removed when deprecated amz_date attribute is removed
 
         """
+        warnings.resetwarnings()
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("ignore")
             obj = AWS4SigningKey('secret_key', 'region', 'service')
-            self.assertWarns(DeprecationWarning, getattr, obj, 'amz_date')
+            if PY2:
+                warnings.simplefilter('always')
+                obj.amz_date
+                self.assertEqual(len(w), 1)
+                self.assertEqual(w[-1].category, DeprecationWarning)
+            else:
+                warnings.simplefilter('ignore')
+                self.assertWarns(DeprecationWarning, getattr, obj, 'amz_date')
 
     def test_sign_sha256_unicode_msg(self):
         key = b'The quick brown fox jumps over the lazy dog'
@@ -345,18 +352,20 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
                         'region',
                         'service',
                         include_hdrs=test_inc_hdrs,
-                        raise_invalid_date=True)
+                        raise_invalid_date=True,
+                        session_token='sessiontoken')
         self.assertEqual(auth.access_id, 'access_id')
         self.assertEqual(auth.region, 'region')
         self.assertEqual(auth.service, 'service')
         self.assertListEqual(auth.include_hdrs, test_inc_hdrs)
         self.assertEqual(auth.raise_invalid_date, True)
+        self.assertEqual(auth.session_token, 'sessiontoken')
         self.assertIsInstance(auth.signing_key, AWS4SigningKey)
         self.assertEqual(auth.signing_key.region, 'region')
         self.assertEqual(auth.signing_key.service, 'service')
-        if test_date != auth.signing_key.amz_date:
+        if test_date != auth.signing_key.date:
             test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
-        self.assertEqual(auth.signing_key.amz_date, test_date)
+        self.assertEqual(auth.signing_key.date, test_date)
         expected = '{}/region/service/aws4_request'.format(test_date)
         self.assertEqual(auth.signing_key.scope, expected)
 
@@ -997,6 +1006,15 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
         req.headers['x-amz-date'] = '20000101T010101Z'
         self.assertRaises(NoSecretKeyError, auth, req)
 
+    def test_sts_creds_include_security_token_header(self):
+        key = AWS4SigningKey('secret_key', 'region', 'service', '1999010')
+        auth = AWS4Auth('access_id', key, session_token='sessiontoken')
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        sreq = auth(req)
+        self.assertIn('x-amz-security-token', sreq.headers)
+        self.assertEqual(sreq.headers.get('x-amz-security-token'), 'sessiontoken')
+
     @unittest.skipIf(amz_aws4_testsuite is None, 'aws4_testsuite unavailable,'
                      ' download it from http://docs.aws.amazon.com/general/la'
                      'test/gr/samples/aws4_testsuite.zip')
@@ -1127,7 +1145,7 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         'EC2': 'ec2.us-east-1.amazonaws.com/?Action=DescribeRegions&Version=2014-06-15',
         'EC2 Container Service': 'ecs.us-east-1.amazonaws.com/?Action=ListClusters&Version=2014-11-13',
         'Elastic Load Balancing': 'elasticloadbalancing.us-east-1.amazonaws.com/?Action=DescribeLoadBalancers&Version=2012-06-01',
-        'Elastic MapReduce': 'elasticmapreduce.us-east-1.amazonaws.com/?Action=DescribeJobFlows&Version=2009-03-31',
+        'Elastic MapReduce': 'elasticmapreduce.us-east-1.amazonaws.com/?Action=ListClusters&Version=2009-03-31',
         'Elastic Transcoder': 'elastictranscoder.us-east-1.amazonaws.com/2012-09-25/pipelines',
         'Glacier': {
             'req': 'glacier.us-east-1.amazonaws.com/-/vaults',
