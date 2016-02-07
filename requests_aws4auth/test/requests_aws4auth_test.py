@@ -352,12 +352,14 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
                         'region',
                         'service',
                         include_hdrs=test_inc_hdrs,
-                        raise_invalid_date=True)
+                        raise_invalid_date=True,
+                        session_token='sessiontoken')
         self.assertEqual(auth.access_id, 'access_id')
         self.assertEqual(auth.region, 'region')
         self.assertEqual(auth.service, 'service')
         self.assertListEqual(auth.include_hdrs, test_inc_hdrs)
         self.assertEqual(auth.raise_invalid_date, True)
+        self.assertEqual(auth.session_token, 'sessiontoken')
         self.assertIsInstance(auth.signing_key, AWS4SigningKey)
         self.assertEqual(auth.signing_key.region, 'region')
         self.assertEqual(auth.signing_key.service, 'service')
@@ -1003,6 +1005,15 @@ class AWS4Auth_RequestSign_Test(unittest.TestCase):
         if 'date' in req.headers: del req.headers['date']
         req.headers['x-amz-date'] = '20000101T010101Z'
         self.assertRaises(NoSecretKeyError, auth, req)
+
+    def test_sts_creds_include_security_token_header(self):
+        key = AWS4SigningKey('secret_key', 'region', 'service', '1999010')
+        auth = AWS4Auth('access_id', key, session_token='sessiontoken')
+        req = requests.Request('GET', 'http://blah.com')
+        req = req.prepare()
+        sreq = auth(req)
+        self.assertIn('x-amz-security-token', sreq.headers)
+        self.assertEqual(sreq.headers.get('x-amz-security-token'), 'sessiontoken')
 
     @unittest.skipIf(amz_aws4_testsuite is None, 'aws4_testsuite unavailable,'
                      ' download it from http://docs.aws.amazon.com/general/la'
