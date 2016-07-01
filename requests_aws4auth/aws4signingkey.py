@@ -43,7 +43,7 @@ class AWS4SigningKey:
     """
 
     def __init__(self, secret_key, region, service, date=None,
-                 store_secret_key=True):
+                 store_secret_key=True, scope_suffix='aws4_request', key_prefix='AWS4'):
         """
         >>> AWS4SigningKey(secret_key, region, service[, date]
         ...                [, store_secret_key])
@@ -87,17 +87,19 @@ class AWS4SigningKey:
         self.region = region
         self.service = service
         self.date = date or datetime.utcnow().strftime('%Y%m%d')
-        self.scope = '{}/{}/{}/aws4_request'.format(
+        self.scope_suffix = scope_suffix
+        self.key_prefix = key_prefix
+        self.scope = '{}/{}/{}/{}'.format(
                                             self.date,
                                             self.region,
-                                            self.service)
+                                            self.service,
+                                            self.scope_suffix)
         self.store_secret_key = store_secret_key
         self.secret_key = secret_key if self.store_secret_key else None
         self.key = self.generate_key(secret_key, self.region,
                                      self.service, self.date)
 
-    @classmethod
-    def generate_key(cls, secret_key, region, service, date,
+    def generate_key(self, secret_key, region, service, date,
                      intermediates=False):
         """
         Generate the signing key string as bytes.
@@ -111,11 +113,11 @@ class AWS4SigningKey:
         Amazon.
 
         """
-        init_key = ('AWS4' + secret_key).encode('utf-8')
-        date_key = cls.sign_sha256(init_key, date)
-        region_key = cls.sign_sha256(date_key, region)
-        service_key = cls.sign_sha256(region_key, service)
-        key = cls.sign_sha256(service_key, 'aws4_request')
+        init_key = (self.key_prefix + secret_key).encode('utf-8')
+        date_key = self.sign_sha256(init_key, date)
+        region_key = self.sign_sha256(date_key, region)
+        service_key = self.sign_sha256(region_key, service)
+        key = self.sign_sha256(service_key, self.scope_suffix)
         if intermediates:
             return (key, date_key, region_key, service_key)
         else:

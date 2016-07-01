@@ -173,7 +173,14 @@ class AWS4Auth(AuthBase):
 
     """
     default_include_headers = ['host', 'content-type', 'date', 'x-amz-*']
-
+    SECURITY_TOKEN_HEADER = 'x-amz-security-token'
+    DATE_HEADER = 'x-amz-date'
+    CONTENT_SHA256_HEADER = 'x-amz-content-sha256'
+    CLIENT_CONTEXT_HEADER = 'x-amz-client-context'
+    HEADER_PREFIX = 'x-amz-'
+    SCOPE_SUFFIX = 'aws4_request'
+    KEY_PREFIX = 'AWS4'
+    AUTH_PREFIX = 'AWS4-HMAC-SHA256'
     def __init__(self, *args, **kwargs):
         """
         AWS4Auth instances can be created by supplying key scope parameters
@@ -256,7 +263,7 @@ class AWS4Auth(AuthBase):
 
         self.session_token = kwargs.get('session_token')
         if self.session_token:
-            self.default_include_headers.append('x-amz-security-token')
+            self.default_include_headers.append(self.SECURITY_TOKEN_HEADER)
         self.include_hdrs = kwargs.get('include_hdrs',
                                        self.default_include_headers)
         AuthBase.__init__(self)
@@ -299,7 +306,8 @@ class AWS4Auth(AuthBase):
             store_secret_key = self.signing_key.store_secret_key
 
         self.signing_key = AWS4SigningKey(secret_key, region, service, date,
-                                          store_secret_key)
+                                          store_secret_key, self.SCOPE_SUFFIX,
+                                          self.KEY_PREFIX)
 
         self.region = region
         self.service = service
@@ -329,10 +337,10 @@ class AWS4Auth(AuthBase):
             # no date headers or none in recognisable format
             # replace them with x-amz-header with current date and time
             if 'date' in req.headers: del req.headers['date']
-            if 'x-amz-date' in req.headers: del req.headers['x-amz-date']
+            if self.DATE_HEADER in req.headers: del req.headers[self.DATE_HEADER]
             now = datetime.datetime.utcnow()
             req_date = now.date()
-            req.headers['x-amz-date'] = now.strftime('%Y%m%dT%H%M%SZ')
+            req.headers[self.DATE_HEADER] = now.strftime('%Y%m%dT%H%M%SZ')
         req_scope_date = req_date.strftime('%Y%m%d')
         if req_scope_date != self.date:
             self.handle_date_mismatch(req)
@@ -343,9 +351,9 @@ class AWS4Auth(AuthBase):
             content_hash = hashlib.sha256(req.body)
         else:
             content_hash = hashlib.sha256(b'')
-        req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
+        req.headers[self.CONTENT_SHA256_HEADER] = content_hash.hexdigest()
         if self.session_token:
-            req.headers['x-amz-security-token'] = self.session_token
+            req.headers[self.CONTENT_SHA256_HEADER] = self.session_token
 
         # generate signature
         result = self.get_canonical_headers(req, self.include_hdrs)
@@ -356,7 +364,7 @@ class AWS4Auth(AuthBase):
         sig_string = sig_string.encode('utf-8')
         hsh = hmac.new(self.signing_key.key, sig_string, hashlib.sha256)
         sig = hsh.hexdigest()
-        auth_str = 'AWS4-HMAC-SHA256 '
+        auth_str = self.AUTH_PREFIX + ' '
         auth_str += 'Credential={}/{}, '.format(self.access_id,
                                                 self.signing_key.scope)
         auth_str += 'SignedHeaders={}, '.format(signed_headers)
@@ -377,7 +385,7 @@ class AWS4Auth(AuthBase):
 
         """
         date = None
-        for header in ['x-amz-date', 'date']:
+        for header in [AWS4Auth.DATE_HEADER, 'date']:
             if header not in req.headers:
                 continue
             try:
@@ -488,7 +496,7 @@ class AWS4Auth(AuthBase):
             else:
                 ct = split[0]
                 if (ct == 'application/x-www-form-urlencoded' or
-                        'x-amz-' in ct):
+                        AWS4Auth.HEADER_PREFIX in ct):
                     req.body = req.body.encode()
                 else:
                     req.body = req.body.encode('utf-8')
@@ -513,7 +521,7 @@ class AWS4Auth(AuthBase):
         split = req.url.split('?', 1)
         qs = split[1] if len(split) == 2 else ''
         qs = self.amz_cano_querystring(qs)
-        payload_hash = req.headers['x-amz-content-sha256']
+        payload_hash = req.headers[self.CONTENT_SHA256_HEADER]
         req_parts = [req.method.upper(), path, qs, cano_headers,
                      signed_headers, payload_hash]
         cano_req = '\n'.join(req_parts)
@@ -557,8 +565,8 @@ class AWS4Auth(AuthBase):
             hdr = hdr.strip().lower()
             val = cls.amz_norm_whitespace(val).strip()
             if (hdr in include or '*' in include or
-                    ('x-amz-*' in include and hdr.startswith('x-amz-') and not
-                    hdr == 'x-amz-client-context')):
+                    (AWS4Auth.HEADER_PREFIX + '*' in include and hdr.startswith(AWS4Auth.HEADER_PREFIX) and not
+                    hdr == AWS4Auth.CLIENT_CONTEXT_HEADER)):
                 vals = cano_headers_dict.setdefault(hdr, [])
                 vals.append(val)
         # Flatten cano_headers dict to string and generate signed_headers
@@ -583,9 +591,9 @@ class AWS4Auth(AuthBase):
                     get_canonical_request()
 
         """
-        amz_date = req.headers['x-amz-date']
+        amz_date = req.headers[AWS4Auth.DATE_HEADER]
         hsh = hashlib.sha256(cano_req.encode())
-        sig_items = ['AWS4-HMAC-SHA256', amz_date, scope, hsh.hexdigest()]
+        sig_items = [AWS4Auth.AUTH_PREFIX, amz_date, scope, hsh.hexdigest()]
         sig_string = '\n'.join(sig_items)
         return sig_string
 
