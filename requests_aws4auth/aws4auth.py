@@ -655,10 +655,11 @@ class AWS4Auth(AuthBase):
             vals = [quote(val, safe=safe_qs_unresvd) for val in vals]
             qs_items[name] = vals
         qs_strings = []
-        for name, vals in qs_items.items():
+        for name in sorted(qs_items):
+            vals = qs_items[name]
             for val in vals:
                 qs_strings.append('='.join([name, val]))
-        qs = '&'.join(sorted(qs_strings))
+        qs = '&'.join(qs_strings)
         if PY2:
             qs = unicode(qs)
         return qs
