@@ -29,6 +29,12 @@ from .aws4signingkey import AWS4SigningKey
 from .exceptions import DateMismatchError, NoSecretKeyError, DateFormatError
 
 
+def makebytes(value):
+    if not isinstance(value, bytes):
+        value = value.encode('ascii')
+    return value
+
+
 class AWS4Auth(AuthBase):
     """
     Requests authentication class providing AWS version 4 authentication for
@@ -361,7 +367,7 @@ class AWS4Auth(AuthBase):
                                                 self.signing_key.scope)
         auth_str += 'SignedHeaders={}, '.format(signed_headers)
         auth_str += 'Signature={}'.format(sig)
-        req.headers[b'Authorization'] = bytes(auth_str)
+        req.headers[b'Authorization'] = makebytes(auth_str)
         return req
 
     @classmethod
@@ -480,19 +486,19 @@ class AWS4Auth(AuthBase):
 
         """
         if isinstance(req.body, text_type):
-            split = req.headers.get(b'content-type', b'text/plain').split(';')
+            split = req.headers.get(b'content-type', b'text/plain').split(b';')
             if len(split) == 2:
                 ct, cs = split
-                cs = cs.split('=')[1]
+                cs = cs.split(b'=')[1]
                 req.body = req.body.encode(cs)
             else:
                 ct = split[0]
-                if (ct == 'application/x-www-form-urlencoded' or
-                        'x-amz-' in ct):
+                if (ct == b'application/x-www-form-urlencoded' or
+                        b'x-amz-' in ct):
                     req.body = req.body.encode()
                 else:
                     req.body = req.body.encode('utf-8')
-                    req.headers['content-type'] = ct + '; charset=utf-8'
+                    req.headers[b'content-type'] = ct + b'; charset=utf-8'
 
     def get_canonical_request(self, req, cano_headers, signed_headers):
         """
@@ -510,13 +516,13 @@ class AWS4Auth(AuthBase):
         path = self.amz_cano_path(url.path)
         # AWS handles "extreme" querystrings differently to urlparse
         # (see post-vanilla-query-nonunreserved test in aws_testsuite)
-        split = req.url.split('?', 1)
-        qs = split[1] if len(split) == 2 else ''
+        split = req.url.split(b'?', 1)
+        qs = split[1] if len(split) == 2 else b''
         qs = self.amz_cano_querystring(qs)
-        payload_hash = req.headers['x-amz-content-sha256']
+        payload_hash = req.headers[b'x-amz-content-sha256']
         req_parts = [req.method.upper(), path, qs, cano_headers,
                      signed_headers, payload_hash]
-        cano_req = '\n'.join(req_parts)
+        cano_req = b'\n'.join(req_parts)
         return cano_req
 
     @classmethod
@@ -545,8 +551,8 @@ class AWS4Auth(AuthBase):
         # Temporarily include the host header - AWS requires it to be included
         # in the signed headers, but Requests doesn't include it in a
         # PreparedRequest
-        if 'host' not in headers:
-            headers['host'] = urlparse(req.url).netloc.split(':')[0]
+        if b'host' not in headers:
+            headers[b'host'] = urlparse(req.url).netloc.split(':')[0]
         # Aggregate for upper/lowercase header name collisions in header names,
         # AMZ requires values of colliding headers be concatenated into a
         # single header with lowercase name.  Although this is not possible with
@@ -554,22 +560,22 @@ class AWS4Auth(AuthBase):
         # is here just in case you duck type with a regular dict
         cano_headers_dict = {}
         for hdr, val in headers.items():
-            hdr = hdr.strip().lower()
-            val = cls.amz_norm_whitespace(val).strip()
-            if (hdr in include or '*' in include or
-                    ('x-amz-*' in include and hdr.startswith('x-amz-') and not
-                    hdr == 'x-amz-client-context')):
+            hdr = makebytes(hdr.strip().lower())
+            val = makebytes(cls.amz_norm_whitespace(val).strip())
+            if (hdr in include or b'*' in include or
+                    (b'x-amz-*' in include and hdr.startswith(b'x-amz-') and not
+                    hdr == b'x-amz-client-context')):
                 vals = cano_headers_dict.setdefault(hdr, [])
                 vals.append(val)
         # Flatten cano_headers dict to string and generate signed_headers
-        cano_headers = ''
+        cano_headers = b''
         signed_headers_list = []
         for hdr in sorted(cano_headers_dict):
             vals = cano_headers_dict[hdr]
-            val = ','.join(sorted(vals))
-            cano_headers += '{}:{}\n'.format(hdr, val)
+            val = b','.join(sorted(vals))
+            cano_headers += hdr + b':' + val + b'\n'
             signed_headers_list.append(hdr)
-        signed_headers = ';'.join(signed_headers_list)
+        signed_headers = b';'.join(signed_headers_list)
         return (cano_headers, signed_headers)
 
     @staticmethod
@@ -599,15 +605,15 @@ class AWS4Auth(AuthBase):
         path -- request path
 
         """
-        safe_chars = '/~'
-        qs = ''
+        safe_chars = b'/~'
+        qs = b''
         fixed_path = path
-        if '?' in fixed_path:
-            fixed_path, qs = fixed_path.split('?', 1)
+        if b'?' in fixed_path:
+            fixed_path, qs = fixed_path.split(b'?', 1)
         fixed_path = posixpath.normpath(fixed_path)
-        fixed_path = re.sub('/+', '/', fixed_path)
-        if path.endswith('/') and not fixed_path.endswith('/'):
-            fixed_path += '/'
+        fixed_path = re.sub(b'/+', b'/', fixed_path)
+        if path.endswith(b'/') and not fixed_path.endswith(b'/'):
+            fixed_path += b'/'
         full_path = fixed_path
         # If Python 2, switch to working entirely in str as quote() has problems
         # with Unicode
