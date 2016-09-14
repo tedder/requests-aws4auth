@@ -398,7 +398,7 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
                         'secret_key',
                         'region',
                         'service')
-        check_set = {'host', 'content-type', 'date', 'x-amz-*'}
+        check_set = {b'host', b'content-type', b'date', b'x-amz-*'}
         self.assertSetEqual(set(auth.include_hdrs), check_set)
 
 
