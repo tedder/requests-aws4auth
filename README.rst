@@ -26,7 +26,7 @@ Supported Services
 ------------------
 This package has been tested as working against:
 
-AppStream, Auto-Scaling, CloudFormation, CloudFront, CloudHSM, CloudSearch,
+API Gateway, AppStream, Auto-Scaling, CloudFormation, CloudFront, CloudHSM, CloudSearch,
 CloudTrail, CloudWatch Monitoring, CloudWatch Logs, CodeDeploy, Cognito
 Identity, Cognito Sync, Config, DataPipeline, Direct Connect, DynamoDB, Elastic
 Beanstalk, ElastiCache, EC2, EC2 Container Service, Elastic Load Balancing,
