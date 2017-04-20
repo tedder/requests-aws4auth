@@ -180,7 +180,7 @@ class AWS4Auth(AuthBase):
         directly or by using an AWS4SigningKey instance:
 
         >>> auth = AWS4Auth(access_id, secret_key, region, service
-        ...                 [, date][, raise_invalid_date=False][, session_token=None])
+        ...                 [, date][, raise_invalid_date=False][, session_token=None][, unsign_payload=False])
 
           or
 
@@ -224,6 +224,11 @@ class AWS4Auth(AuthBase):
                     -- Must be supplied as keyword argument. If session_token
                        is set, then it is used for the x-amz-security-token
                        header, for use with STS temporary credentials.
+        unsign_payload
+                    -- Used to set x-amz-content-sha256 to 'UNSIGNED_PAYLOAD',
+                        instead of hasing the payload. This is used in certain 
+                        conditions where payload that is being sent should not be 
+                        signed. 
 
         """
         l = len(args)
@@ -257,6 +262,8 @@ class AWS4Auth(AuthBase):
         self.session_token = kwargs.get('session_token')
         if self.session_token:
             self.default_include_headers.append('x-amz-security-token')
+
+        self.unsign_payload = kwargs.get('unsign_payload')
         self.include_hdrs = kwargs.get('include_hdrs',
                                        self.default_include_headers)
         AuthBase.__init__(self)
@@ -337,13 +344,17 @@ class AWS4Auth(AuthBase):
         if req_scope_date != self.date:
             self.handle_date_mismatch(req)
 
-        # encode body and generate body hash
-        if hasattr(req, 'body') and req.body is not None:
-            self.encode_body(req)
-            content_hash = hashlib.sha256(req.body)
+        if self.unsign_payload:
+            req.headers['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD'
         else:
-            content_hash = hashlib.sha256(b'')
-        req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
+            # encode body and generate body hash
+            if hasattr(req, 'body') and req.body is not None:
+                self.encode_body(req)
+                content_hash = hashlib.sha256(req.body)
+            else:
+                content_hash = hashlib.sha256(b'')
+            req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
+
         if self.session_token:
             req.headers['x-amz-security-token'] = self.session_token
 
