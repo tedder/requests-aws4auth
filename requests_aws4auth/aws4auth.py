@@ -85,6 +85,22 @@ class AWS4Auth(AuthBase):
     case the temporary credentials expire, they need to be re-generated and
     the AWS4Auth object re-constructed with the new credentials.
 
+    Dynamic STS Credentials using botocore RefreshableCredentials
+    -------------------------------------------------------------
+    >>> from requests_aws4auth import AWS4Auth
+    >>> from botocore.session import Session
+    >>> credentials = Session().get_credentials()
+    >>> auth = AWS4Auth(region='eu-west-1', service='es',
+                        refreshable_credentials=credentials)
+    ...
+
+    This example shows how to construct an AWS4Auth instance with
+    automatically refreshing credentials, suitable for long-running
+    applications using AWS IAM assume-role.
+    The RefreshableCredentials instance is used to generate valid static
+    credentials per-request, eliminating the need to recreate the AWS4Auth
+    instance when temporary credentials expire.
+
     Date handling
     -------------
     If an HTTP request to be authenticated contains a Date or X-Amz-Date
@@ -191,16 +207,26 @@ class AWS4Auth(AuthBase):
 
         >>> auth = AWS4Auth(access_id, signing_key[, raise_invalid_date=False])
 
+          or using auto-refreshed STS temporary creds via botocore RefreshableCredentials
+          (useful for long-running processes):
+
+        >>> auth = AWS4Auth(refreshable_credentials=botocore.session.Session().get_credentials(),
+        ...                 region='eu-west-1', service='es')
+
         access_id   -- This is your AWS access ID
         secret_key  -- This is your AWS secret access key
         region      -- The region you're connecting to, as per the list at
                        http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
                        e.g. us-east-1. For services which don't require a region
                        (e.g. IAM), use us-east-1.
+                       Must be supplied as a keyword argument iff refreshable_credentials
+                       is set.
         service     -- The name of the service you're connecting to, as per
                        endpoints at:
                        http://docs.aws.amazon.com/general/latest/gr/rande.html
                        e.g. elasticbeanstalk.
+                       Must be supplied as a keyword argument iff refreshable_credentials
+                       is set.
         date        -- Date this instance is valid for. 8-digit date as str of the
                        form YYYYMMDD. Key is only valid for requests with a
                        Date or X-Amz-Date header matching this date. If date is
@@ -229,39 +255,59 @@ class AWS4Auth(AuthBase):
                     -- Must be supplied as keyword argument. If session_token
                        is set, then it is used for the x-amz-security-token
                        header, for use with STS temporary credentials.
+        refreshable_credentials
+                    -- A botocore.credentials.RefreshableCredentials instance.
+                       Must be supplied as keyword argument. This instance is
+                       used to generate valid per-request static credentials,
+                       without needing to re-generate the AWS4Auth instance.                       
+                       If refreshable_credentials is set, the following arguments
+                       are ignored: access_id, secret_key, signing_key,
+                       session_token.
 
         """
-        l = len(args)
-        if l not in [2, 4, 5]:
-            msg = 'AWS4Auth() takes 2, 4 or 5 arguments, {} given'.format(l)
-            raise TypeError(msg)
-        self.access_id = args[0]
-        if isinstance(args[1], AWS4SigningKey) and l == 2:
-            # instantiate from signing key
-            self.signing_key = args[1]
-            self.region = self.signing_key.region
-            self.service = self.signing_key.service
-            self.date = self.signing_key.date
-        elif l in [4, 5]:
-            # instantiate from args
-            secret_key = args[1]
-            self.region = args[2]
-            self.service = args[3]
-            self.date = args[4] if l == 5 else None
-            self.signing_key = None
-            self.regenerate_signing_key(secret_key=secret_key)
+        self.signing_key = None
+        self.refreshable_credentials = kwargs.get('refreshable_credentials', None)
+        if self.refreshable_credentials:
+            # instantiate from refreshable_credentials
+            self.service = kwargs.get('service', None)
+            if not self.service:
+                raise TypeError('service must be provided as keyword argument when using refreshable_credentials')
+            self.region = kwargs.get('region', None)
+            if not self.region:
+                raise TypeError('region must be provided as keyword argument when using refreshable_credentials')
+            self.date = kwargs.get('date', None)
+            self.default_include_headers.add('x-amz-security-token')
         else:
-            raise TypeError()
+            l = len(args)
+            if l not in [2, 4, 5]:
+                msg = 'AWS4Auth() takes 2, 4 or 5 arguments, {} given'.format(l)
+                raise TypeError(msg)
+            self.access_id = args[0]
+            if isinstance(args[1], AWS4SigningKey) and l == 2:
+                # instantiate from signing key
+                self.signing_key = args[1]
+                self.region = self.signing_key.region
+                self.service = self.signing_key.service
+                self.date = self.signing_key.date
+            elif l in [4, 5]:
+                # instantiate from args
+                secret_key = args[1]
+                self.region = args[2]
+                self.service = args[3]
+                self.date = args[4] if l == 5 else None
+                self.regenerate_signing_key(secret_key=secret_key)
+            else:
+                raise TypeError()
+
+            self.session_token = kwargs.get('session_token')
+            if self.session_token:
+                self.default_include_headers.add('x-amz-security-token')
 
         raise_invalid_date = kwargs.get('raise_invalid_date', False)
         if raise_invalid_date in [True, False]:
             self.raise_invalid_date = raise_invalid_date
         else:
             raise ValueError('raise_invalid_date must be True or False in AWS4Auth.__init__()')
-
-        self.session_token = kwargs.get('session_token')
-        if self.session_token:
-            self.default_include_headers.add('x-amz-security-token')
 
         self.include_hdrs = set(self.default_include_headers)
 
@@ -333,6 +379,9 @@ class AWS4Auth(AuthBase):
         req -- Requests PreparedRequest object
 
         """
+        if self.refreshable_credentials:
+            # generate per-request static credentials
+            self.refresh_credentials()
         # check request date matches scope date
         req_date = self.get_request_date(req)
         if req_date is None:
@@ -373,6 +422,12 @@ class AWS4Auth(AuthBase):
         auth_str += 'Signature={}'.format(sig)
         req.headers['Authorization'] = auth_str
         return req
+
+    def refresh_credentials(self):
+        temporary_creds = self.refreshable_credentials.get_frozen_credentials()
+        self.access_id = temporary_creds.access_key
+        self.session_token = temporary_creds.token
+        self.regenerate_signing_key(secret_key=temporary_creds.secret_key)
 
     @classmethod
     def get_request_date(cls, req):
