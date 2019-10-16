@@ -172,7 +172,7 @@ def request_from_text(text):
 
     """
     lines = text.splitlines()
-    match = re.search('^([a-z]+) (.*) (http/[0-9]\.[0-9])$', lines[0], re.I)
+    match = re.search(r'^([a-z]+) (.*) (http/[0-9].[0-9])$', lines[0], re.I)
     method, path, version = match.groups()
     headers = {}
     for idx, line in enumerate(lines[1:], start=1):
@@ -799,13 +799,12 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
 
         """
-        hdr_text = [
-            'host:iam.amazonaws.com',
-            'Content-type:application/x-www-form-urlencoded; charset=utf-8',
-            'My-header1:    a   b   c ',
-            'x-amz-date:20120228T030031Z',
-            'My-Header2:    "a   b   c"']
-        headers = dict([item.split(':') for item in hdr_text])
+        headers = {
+            'host': 'iam.amazonaws.com',
+            'Content-type': 'application/x-www-form-urlencoded; charset=utf-8',
+            'My-header1': 'a   b   c ',
+            'x-amz-date': '20120228T030031Z',
+            'My-Header2': '"a   b   c"'}
         req = requests.Request('GET',
                                'http://iam.amazonaws.com',
                                headers=headers)
