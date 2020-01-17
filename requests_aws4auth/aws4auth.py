@@ -172,7 +172,7 @@ class AWS4Auth(AuthBase):
                             supplied directly on the command line
 
     """
-    default_include_headers = ['host', 'content-type', 'date', 'x-amz-*']
+    default_include_headers = {'host', 'content-type', 'date', 'x-amz-*'}
 
     def __init__(self, *args, **kwargs):
         """
@@ -256,7 +256,7 @@ class AWS4Auth(AuthBase):
 
         self.session_token = kwargs.get('session_token')
         if self.session_token:
-            self.default_include_headers.append('x-amz-security-token')
+            self.default_include_headers.add('x-amz-security-token')
         self.include_hdrs = kwargs.get('include_hdrs',
                                        self.default_include_headers)
         AuthBase.__init__(self)
