@@ -14,7 +14,7 @@ import hmac
 import hashlib
 from warnings import warn
 from datetime import datetime
-from .six import text_type
+from six import text_type
 
 
 class AWS4SigningKey:
@@ -87,14 +87,10 @@ class AWS4SigningKey:
         self.region = region
         self.service = service
         self.date = date or datetime.utcnow().strftime('%Y%m%d')
-        self.scope = '{}/{}/{}/aws4_request'.format(
-                                            self.date,
-                                            self.region,
-                                            self.service)
+        self.scope = '{}/{}/{}/aws4_request'.format(self.date, self.region, self.service)
         self.store_secret_key = store_secret_key
         self.secret_key = secret_key if self.store_secret_key else None
-        self.key = self.generate_key(secret_key, self.region,
-                                     self.service, self.date)
+        self.key = self.generate_key(secret_key, self.region, self.service, self.date)
 
     @classmethod
     def generate_key(cls, secret_key, region, service, date,
@@ -138,6 +134,6 @@ class AWS4SigningKey:
     @property
     def amz_date(self):
         msg = ("This attribute has been renamed to 'date'. 'amz_date' is "
-             "deprecated and will be removed in a future version.")
+               "deprecated and will be removed in a future version.")
         warn(msg, DeprecationWarning)
         return self.date

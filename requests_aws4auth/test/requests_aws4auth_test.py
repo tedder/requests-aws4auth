@@ -61,11 +61,10 @@ except ImportError:
 
 import requests
 
-sys.path = ['../../'] + sys.path
 from requests_aws4auth import AWS4Auth
 from requests_aws4auth.aws4signingkey import AWS4SigningKey
 from requests_aws4auth.exceptions import DateFormatError, NoSecretKeyError
-from requests_aws4auth.six import PY2, u
+from six import PY2, u
 
 
 live_access_id = os.getenv('AWS_ACCESS_ID')
@@ -155,6 +154,8 @@ class AmzAws4TestSuite:
                 group[file_ext] = content
             data[group_name] = group
         return data
+
+
 try:
     amz_aws4_testsuite = AmzAws4TestSuite()
 except IOError as e:
@@ -172,7 +173,7 @@ def request_from_text(text):
 
     """
     lines = text.splitlines()
-    match = re.search('^([a-z]+) (.*) (http/[0-9]\.[0-9])$', lines[0], re.I)
+    match = re.search(r'^([a-z]+) (.*) (http/[0-9]\.[0-9])$', lines[0], re.I)
     method, path, version = match.groups()
     headers = {}
     for idx, line in enumerate(lines[1:], start=1):
@@ -192,7 +193,7 @@ def request_from_text(text):
         url = ''.join(['http://' if 'host' in headers else '',
                        headers.get('host', ''),
                        path])
-    body = '\n'.join(lines[idx+1:])
+    body = '\n'.join(lines[idx + 1:])
     req = requests.Request(method, url, headers=headers, data=body)
     return req.prepare()
 
@@ -207,12 +208,12 @@ class AWS4_SigningKey_Test(unittest.TestCase):
 
     def test_store_secret_key(self):
         obj = AWS4SigningKey('secret_key', 'region', 'service',
-                              store_secret_key=True)
+                             store_secret_key=True)
         self.assertEqual(obj.secret_key, 'secret_key')
 
     def test_no_store_secret_key(self):
         obj = AWS4SigningKey('secret_key', 'region', 'service',
-                              store_secret_key=False)
+                             store_secret_key=False)
         self.assertEqual(obj.secret_key, None)
 
     def test_default_store_secret_key(self):
@@ -705,6 +706,7 @@ class AWS4Auth_EncodeBody_Test(unittest.TestCase):
         self.assertEqual(self.req.body, text)
         self.assertEqual(self.req.headers, {})
 
+
 class AWS4Auth_AmzCanonicalPath_Test(unittest.TestCase):
 
     def setUp(self):
@@ -793,6 +795,22 @@ class AWS4Auth_AmzCanonicalQuerystring_Test(unittest.TestCase):
 
 class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
 
+    def test_invalid_header(self):
+        """These should fail."""
+        headers = [
+            'My-Header1: a',
+            'My-Header2: "a   b   c"',
+            "My-Header3:\nab"
+        ]
+
+        for h_to_test in headers:
+            h_dict = dict([item.split(':') for item in [h_to_test]])
+            req = requests.Request('GET',
+                                   'http://iam.amazonaws.com',
+                                   headers=h_dict)
+            with self.assertRaises(requests.exceptions.InvalidHeader):
+                rp = req.prepare()
+
     def test_headers_amz_example(self):
         """
         Using example from:
@@ -802,9 +820,9 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         hdr_text = [
             'host:iam.amazonaws.com',
             'Content-type:application/x-www-form-urlencoded; charset=utf-8',
-            'My-header1:    a   b   c ',
+            'My-header1:a   b   c ',
             'x-amz-date:20120228T030031Z',
-            'My-Header2:    "a   b   c"']
+            'My-Header2:"a   b   c"']
         headers = dict([item.split(':') for item in hdr_text])
         req = requests.Request('GET',
                                'http://iam.amazonaws.com',
@@ -898,7 +916,7 @@ class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
         expected = '\n'.join(expected)
         auth = AWS4Auth('dummy', 'dummy', 'dummy', 'host')
         cano_req = auth.get_canonical_request(req, cano_headers,
-                                                  signed_headers)
+                                              signed_headers)
         self.assertEqual(cano_req, expected)
 
     @unittest.skipIf(amz_aws4_testsuite is None, 'aws4_testsuite unavailable,'
@@ -926,7 +944,7 @@ class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
         cano_headers, signed_headers = result
         auth = AWS4Auth('dummy', 'dummy', 'dummy', 'host')
         cano_req = auth.get_canonical_request(req, cano_headers,
-                                                  signed_headers)
+                                              signed_headers)
         msg = 'Group: ' + group_name
         self.assertEqual(cano_req, group['.creq'], msg=msg)
 
@@ -1105,18 +1123,18 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
             'headers': {'Content-Type': 'application/json',
                         'X-Amz_Target': 'AWSCognitoIdentityService.ListIdentityPools'},
             'body': json.dumps({
-                        'Operation': 'com.amazonaws.cognito.identity.model#ListIdentityPools',
-                        'Service': 'com.amazonaws.cognito.identity.model#AWSCognitoIdentityService',
-                        'Input': {'MaxResults': 1}})},
+                               'Operation': 'com.amazonaws.cognito.identity.model#ListIdentityPools',
+                               'Service': 'com.amazonaws.cognito.identity.model#AWSCognitoIdentityService',
+                               'Input': {'MaxResults': 1}})},
         'Cognito Sync': {
             'method': 'POST',
             'req': 'cognito-sync.us-east-1.amazonaws.com',
             'headers': {'Content-Type': 'application/json',
                         'X-Amz_Target': 'AWSCognitoSyncService.ListIdentityPoolUsage'},
             'body': json.dumps({
-                        'Operation': 'com.amazonaws.cognito.sync.model#ListIdentityPoolUsage',
-                        'Service': 'com.amazonaws.cognito.sync.model#AWSCognitoSyncService',
-                        'Input': {'MaxResults': '1'}})},
+                               'Operation': 'com.amazonaws.cognito.sync.model#ListIdentityPoolUsage',
+                               'Service': 'com.amazonaws.cognito.sync.model#AWSCognitoSyncService',
+                               'Input': {'MaxResults': '1'}})},
         'Config': {
             'method': 'POST',
             'req': 'config.us-east-1.amazonaws.com',
@@ -1140,11 +1158,13 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
             'headers': {'X-Amz-Target': 'DynamoDB_20111205.ListTables',
                         'Content-Type': 'application/x-amz-json-1.0'},
             'body': '{}'},
-        'Elastic Beanstalk': 'elasticbeanstalk.us-east-1.amazonaws.com/?Action=ListAvailableSolutionStacks&Version=2010-12-01',
+        'Elastic Beanstalk': 'elasticbeanstalk.us-east-1.amazonaws.com/'
+                             '?Action=ListAvailableSolutionStacks&Version=2010-12-01',
         'ElastiCache': 'elasticache.us-east-1.amazonaws.com/?Action=DescribeCacheClusters&Version=2014-07-15',
         'EC2': 'ec2.us-east-1.amazonaws.com/?Action=DescribeRegions&Version=2014-06-15',
         'EC2 Container Service': 'ecs.us-east-1.amazonaws.com/?Action=ListClusters&Version=2014-11-13',
-        'Elastic Load Balancing': 'elasticloadbalancing.us-east-1.amazonaws.com/?Action=DescribeLoadBalancers&Version=2012-06-01',
+        'Elastic Load Balancing': 'elasticloadbalancing.us-east-1.amazonaws.com/'
+                                  '?Action=DescribeLoadBalancers&Version=2012-06-01',
         'Elastic MapReduce': 'elasticmapreduce.us-east-1.amazonaws.com/?Action=ListClusters&Version=2009-03-31',
         'Elastic Transcoder': 'elastictranscoder.us-east-1.amazonaws.com/2012-09-25/pipelines',
         'Glacier': {
@@ -1171,7 +1191,8 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
                         'X-Amz-Target': 'OpsWorks_20130218.DescribeStacks'},
             'body': '{}'},
         'Redshift': 'redshift.us-east-1.amazonaws.com/?Action=DescribeClusters&Version=2012-12-01',
-        'Relational Database Service (RDS)': 'rds.us-east-1.amazonaws.com/?Action=DescribeDBInstances&Version=2012-09-17',
+        'Relational Database Service (RDS)': 'rds.us-east-1.amazonaws.com/'
+                                             '?Action=DescribeDBInstances&Version=2012-09-17',
         'Route 53': 'route53.amazonaws.com/2013-04-01/hostedzone',
         'Simple Storage Service (S3)': 's3.amazonaws.com',
         'Simple Notification Service (SNS)': 'sns.us-east-1.amazonaws.com/?Action=ListTopics&Version=2010-03-31',
@@ -1237,18 +1258,20 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
                            'client': {'client_id': 'a', 'app_title': 'a'},
                            'custom': {},
                            'env': {'platform': 'a'},
-                           'services': {} })}
+                           'services': {}})}
         body = json.dumps({
-                    'events': [{
-                        'eventType': 'a',
-                        'timestamp': dt.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
-                        'session': {} }]})
+                          'events': [{
+                                     'eventType': 'a',
+                                     'timestamp': dt.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+                                     'session': {}
+                                     }]
+                          })
         response = requests.post(url, auth=auth, headers=headers, data=body)
         response.connection.close()
         self.assertTrue(response.ok)
 
 
 if __name__ == '__main__':
-#     unittest.main(verbosity=2, defaultTest='AWS4Auth_Instantiate_Test')
-#     unittest.main(verbosity=2, defaultTest='AWS4Auth_RequestSign_Test')
+    #     unittest.main(verbosity=2, defaultTest='AWS4Auth_Instantiate_Test')
+    #     unittest.main(verbosity=2, defaultTest='AWS4Auth_RequestSign_Test')
     unittest.main(verbosity=2)
