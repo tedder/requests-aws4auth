@@ -24,7 +24,7 @@ except ImportError:
     from urllib import quote, unquote
 
 from requests.auth import AuthBase
-from .six import PY2, text_type
+from six import PY2, text_type
 from .aws4signingkey import AWS4SigningKey
 from .exceptions import DateMismatchError, NoSecretKeyError, DateFormatError
 
@@ -285,8 +285,8 @@ class AWS4Auth(AuthBase):
         to setting store_secret_key to True for new key.
 
         """
-        if secret_key is None and (self.signing_key is None or
-                                   self.signing_key.secret_key is None):
+        if secret_key is None and (self.signing_key is None or self.signing_key.secret_key is None):
+
             raise NoSecretKeyError
 
         secret_key = secret_key or self.signing_key.secret_key
@@ -415,23 +415,23 @@ class AWS4Auth(AuthBase):
             # RFC 7231, e.g. 'Mon, 09 Sep 2011 23:36:00 GMT'
             r'^(?:\w{3}, )?(\d{2}) (\w{3}) (\d{4})\D.*$':
                 lambda m: '{}-{:02d}-{}'.format(
-                                          m.group(3),
-                                          months.index(m.group(2).lower())+1,
-                                          m.group(1)),
+                    m.group(3),
+                    months.index(m.group(2).lower()) + 1,
+                    m.group(1)),
             # RFC 850 (e.g. Sunday, 06-Nov-94 08:49:37 GMT)
             # assumes current century
             r'^\w+day, (\d{2})-(\w{3})-(\d{2})\D.*$':
                 lambda m: '{}{}-{:02d}-{}'.format(
-                                            str(datetime.date.today().year)[:2],
-                                            m.group(3),
-                                            months.index(m.group(2).lower())+1,
-                                            m.group(1)),
+                    str(datetime.date.today().year)[:2],
+                    m.group(3),
+                    months.index(m.group(2).lower()) + 1,
+                    m.group(1)),
             # C time, e.g. 'Wed Dec 4 00:00:00 2002'
             r'^\w{3} (\w{3}) (\d{1,2}) \d{2}:\d{2}:\d{2} (\d{4})$':
                 lambda m: '{}-{:02d}-{:02d}'.format(
-                                              m.group(3),
-                                              months.index(m.group(1).lower())+1,
-                                              int(m.group(2))),
+                    m.group(3),
+                    months.index(m.group(1).lower()) + 1,
+                    int(m.group(2))),
             # x-amz-date format dates, e.g. 20100325T010101Z
             r'^(\d{4})(\d{2})(\d{2})T\d{6}Z$':
                 lambda m: '{}-{}-{}'.format(*m.groups()),
@@ -487,8 +487,7 @@ class AWS4Auth(AuthBase):
                 req.body = req.body.encode(cs)
             else:
                 ct = split[0]
-                if (ct == 'application/x-www-form-urlencoded' or
-                        'x-amz-' in ct):
+                if (ct == 'application/x-www-form-urlencoded' or 'x-amz-' in ct):
                     req.body = req.body.encode()
                 else:
                     req.body = req.body.encode('utf-8')
@@ -556,9 +555,9 @@ class AWS4Auth(AuthBase):
         for hdr, val in headers.items():
             hdr = hdr.strip().lower()
             val = cls.amz_norm_whitespace(val).strip()
-            if (hdr in include or '*' in include or
-                    ('x-amz-*' in include and hdr.startswith('x-amz-') and not
-                    hdr == 'x-amz-client-context')):
+            if (hdr in include or '*' in include
+                or ('x-amz-*' in include and hdr.startswith('x-amz-')
+                    and not hdr == 'x-amz-client-context')):
                 vals = cano_headers_dict.setdefault(hdr, [])
                 vals.append(val)
         # Flatten cano_headers dict to string and generate signed_headers

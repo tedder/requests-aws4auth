@@ -22,9 +22,9 @@ def find_version(*file_paths):
     raise RuntimeError('Unable to find version string.')
 
 
-with codecs.open('README.rst', 'r', 'utf-8') as f:
+with codecs.open('README.md', 'r', 'utf-8') as f:
     readme = f.read()
-with codecs.open('HISTORY.rst', 'r', 'utf-8') as f:
+with codecs.open('HISTORY.md', 'r', 'utf-8') as f:
     history = f.read()
 
 
@@ -32,22 +32,22 @@ version = find_version('requests_aws4auth', '__init__.py')
 
 
 setup(
-    name='requests-aws4auth',
-    packages=['requests_aws4auth'],
+    name='requests-aws4auth-tedder',
     version=version,
     description='AWS4 authentication for Requests',
     long_description=readme + '\n\n' + history,
-    author='Sam Washington',
-    author_email='codegreen@aethris.net',
-    url='https://github.com/sam-washington/requests-aws4auth',
-    download_url=('https://github.com/sam-washington/'
-                  'requests-aws4auth/tarball/' + version),
+    long_description_content_type='text/markdown',
+    author='Ted Timmons',
+    author_email='ted@tedder.dev',
+    url='https://github.com/tedder/requests-aws4auth',
+    download_url=('https://github.com/tedder/requests-aws4auth/tarball/' + version),
     license='MIT License',
     keywords='requests authentication amazon web services aws s3 REST',
     install_requires=['requests'],
+    packages=['requests_aws4auth'],
     package_data={'requests_aws4auth': ['test/requests_aws4auth_test.py',
-                                        '../README.rst', '../LICENSE',
-                                        '../NOTICE', '../HISTORY.rst']},
+                                        '../README.md', '../LICENSE',
+                                        '../HISTORY.md']},
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
