@@ -18,6 +18,11 @@ import shlex
 import datetime
 
 try:
+    import collections.abc as abc
+except ImportError:
+    import collections as abc
+
+try:
     from urllib.parse import urlparse, parse_qs, quote, unquote
 except ImportError:
     from urlparse import urlparse, parse_qs
@@ -257,8 +262,13 @@ class AWS4Auth(AuthBase):
         self.session_token = kwargs.get('session_token')
         if self.session_token:
             self.default_include_headers.add('x-amz-security-token')
-        self.include_hdrs = kwargs.get('include_hdrs',
-                                       self.default_include_headers)
+
+        self.include_hdrs = set(self.default_include_headers)
+
+        # if the key exists and it's some sort of listable object, use it.
+        if 'include_hdrs' in kwargs and isinstance(kwargs['include_hdrs'], abc.Iterable):
+            self.include_hdrs = set(kwargs['include_hdrs'])
+
         AuthBase.__init__(self)
 
     def regenerate_signing_key(self, secret_key=None, region=None,
