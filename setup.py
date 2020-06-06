@@ -32,7 +32,7 @@ version = find_version('requests_aws4auth', '__init__.py')
 
 
 setup(
-    name='requests-aws4auth-tedder',
+    name='requests-aws4auth',
     version=version,
     description='AWS4 authentication for Requests',
     long_description=readme + '\n\n' + history,
