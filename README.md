@@ -214,3 +214,23 @@ Unsupported AWS features / todo
 -   Requires Requests library to be present even if only using
     AWS4SigningKey
 -   Coherent documentation
+
+Version release notes
+=====================
+
+- update `HISTORY.md`
+- update `requests_aws4auth/__init__.py`
+
+prep:
+```
+python3 -m pip install --user --upgrade setuptools wheel
+python3 -m pip install --user --upgrade twine
+```
+
+build and release, creds in `~/.pypirc`:
+```
+python3 setup.py sdist bdist_wheel
+python3 -m twine upload --repository testpypi dist/*
+python3 -m twine upload --repository pypi dist/*
+```
+
