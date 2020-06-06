@@ -1,3 +1,15 @@
+1.1.0 (TBD)
+=========
+
+**Package changes**
+
+- Switch to '[semver](https://semver.org/)'. This allows backwards compatability versioning and patch releases.
+- Move 'development status' tag from alpha to beta.
+
+**Note on upcoming deprecations**
+
+- Version 2.x, which will likely come within the next year, will deprecate support for `amz_date`, python 2.7, and any version of python 3 before 3.6. If this is a problem, make sure to pin the version range as `requests-aws4auth<2`
+
 1.0 (2020-06-06)
 =========
 

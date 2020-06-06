@@ -48,6 +48,10 @@ requests-aws4auth requires the `Requests`_ library by Kenneth Reitz.
 
 requests-aws4auth is tested on Python 2.7 and 3.3 and up.
 
+Version numbering changes in 1.1.0
+----------------------------------
+1.1.0 switches to double-dotted (semver) style.
+
 Behaviour changes in 0.8
 ------------------------
 Version 0.8 introduces request date checking and automatic key regeneration
@@ -208,4 +212,4 @@ del aws4auth
 del aws4signingkey
 del exceptions
 
-__version__ = '1.0'
+__version__ = '1.1.0'
