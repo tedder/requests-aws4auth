@@ -1,15 +1,16 @@
-1.0 (TBD)
+1.0 (2020-06-06)
 =========
 
-**Modules**
+**New features**
 
+- none!
 
 **Package changes**
 
 - add flake8 config
 - convert docs to markdown
 - Removed bundled six.py.
-- Taken over ownership via [PEP451](https://www.python.org/dev/peps/pep-0541/#continue-maintenance); [pypi issue here](https://github.com/pypa/pypi-support/issues/393), [attempt to contact creator here](https://github.com/sam-washington/requests-aws4auth/issues/40).
+- Taken over ownership via [PEP451](https://www.python.org/dev/peps/pep-0541/#continue-maintenance); [pypi issue here](https://github.com/pypa/pypi-support/issues/393), [successfully contacted Sam](https://github.com/sam-washington/requests-aws4auth/issues/40).
 
 **Tests**
 
