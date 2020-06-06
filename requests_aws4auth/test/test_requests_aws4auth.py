@@ -328,7 +328,7 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
 
     def test_instantiate_from_args(self):
         test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
-        test_inc_hdrs = ['a', 'b', 'c']
+        test_inc_hdrs = set(['a', 'b', 'c'])
         auth = AWS4Auth('access_id',
                         'secret_key',
                         'region',
@@ -339,7 +339,7 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
         self.assertEqual(auth.access_id, 'access_id')
         self.assertEqual(auth.region, 'region')
         self.assertEqual(auth.service, 'service')
-        self.assertListEqual(auth.include_hdrs, test_inc_hdrs)
+        self.assertEqual(auth.include_hdrs, test_inc_hdrs)
         self.assertEqual(auth.raise_invalid_date, True)
         self.assertEqual(auth.session_token, 'sessiontoken')
         self.assertIsInstance(auth.signing_key, AWS4SigningKey)
