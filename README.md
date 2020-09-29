@@ -229,8 +229,9 @@ python3 -m pip install --user --upgrade twine
 
 build and release, creds in `~/.pypirc`:
 ```
-python3 setup.py sdist bdist_wheel
-python3 -m twine upload --repository testpypi dist/*
+rm -f dist/*; \
+python3 setup.py sdist bdist_wheel && \
+python3 -m twine upload --repository testpypi dist/* && \
 python3 -m twine upload --repository pypi dist/*
 ```
 
