@@ -1,3 +1,19 @@
+1.0.0 (2020-09-28)
+=========
+
+**New features**
+
+- none
+
+**Package changes**
+
+- bump to proper X.Y.Z semver syntax
+- bump project to stable (#33)
+
+**Tests**
+
+- none
+
 1.0 (2020-06-06)
 =========
 
