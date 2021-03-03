@@ -43,7 +43,7 @@ setup(
     download_url=('https://github.com/tedder/requests-aws4auth/tarball/' + version),
     license='MIT License',
     keywords='requests authentication amazon web services aws s3 REST',
-    install_requires=['requests'],
+    install_requires=['requests', 'six'],
     packages=['requests_aws4auth'],
     package_data={'requests_aws4auth': ['test/requests_aws4auth_test.py',
                                         '../README.md', '../LICENSE',
@@ -54,8 +54,6 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
@@ -63,5 +61,6 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Topic :: Internet :: WWW/HTTP'])
 
