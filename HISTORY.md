@@ -1,3 +1,19 @@
+1.1.0 (2021-TODO)
+=========
+
+**New features**
+
+- query string ordering has been fixed. Documented in #21, fixed in #23. Thanks @zen4ever.
+
+**Package changes**
+
+- none
+
+**Tests**
+
+- none
+
+
 1.0.1 (2020-09-28)
 =========
 

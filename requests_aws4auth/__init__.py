@@ -46,16 +46,7 @@ Install via pip:
 
 requests-aws4auth requires the `Requests`_ library by Kenneth Reitz.
 
-requests-aws4auth is tested on Python 2.7 and 3.3 and up.
-
-Behaviour changes in 0.8
-------------------------
-Version 0.8 introduces request date checking and automatic key regeneration
-behaviour as default. This has implications for sharing authentication objects
-between threads, and for storage of secret keys. See the relevant sections
-below for details. See also the discussion in `GitHub issue #10`_.
-
-.. _GitHub issue #10: https://github.com/sam-washington/requests-aws4auth/issues/10
+requests-aws4auth supports Python 3.3 and up. Python 2.7 may work but is not supported after the version 1.0.x tree.
 
 Basic usage
 -----------
@@ -208,4 +199,4 @@ del aws4auth
 del aws4signingkey
 del exceptions
 
-__version__ = '1.0.1'
+__version__ = '1.1.0'
