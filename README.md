@@ -39,6 +39,15 @@ Import/Export, SimpleDB, DevPay, Mechanical Turk
 The AWS Support API has not been tested as it requires a premium
 subscription.
 
+Python versions
+========
+In the 1.x semantic versions, the minimum python support will be gradually raised:
+
+* 1.0.x: Support python2.7 and python3.3+.
+* 1.1.x: python2.7 is not supported, is best-effort. Support python3.3+.
+* 1.2.x: [Requires-Python](https://packaging.python.org/guides/dropping-older-python-versions/#specify-the-version-ranges-for-supported-python-distributions) will be set to python3.3+, explicitly removing earlier versions. python<3.7 is not supported, is best-effort.
+* 1.3.x: [Requires-Python](https://packaging.python.org/guides/dropping-older-python-versions/#specify-the-version-ranges-for-supported-python-distributions) will be set to python3.7+, explicitly removing earlier versions. (best-effort is TBD)
+
 Installation
 ============
 
