@@ -4,6 +4,7 @@
 **New features**
 
 - query string ordering has been fixed. Documented in #21, fixed in #23. Thanks @zen4ever.
+- test for spaces before calling shlex on them in `amz_norm_whitespace`. shlex doesn't like to split whitespace on a string without whitespace, taking several orders of magnitude longer to parse through it. #35, thanks @noamkush.
 
 **Package changes**
 
