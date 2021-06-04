@@ -248,6 +248,7 @@ Version release notes
 
 - update `HISTORY.md`
 - update `requests_aws4auth/__init__.py`
+- cut a branch on github
 
 prep:
 ```

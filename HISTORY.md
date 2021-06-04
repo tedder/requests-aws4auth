@@ -1,3 +1,21 @@
+1.1.1 (2021-06-04)
+=========
+
+**Bugfixes**
+
+- secondary fix to query string ordering, documented in #49. It would fail with multiple values for the same key. Thanks @martinamps.
+- fix minor deprecation warning in a regex.
+
+**Package changes**
+
+- none
+
+**Tests**
+
+- Added tests for #49 secondary fix for string ordering.
+
+
+
 1.1.0 (2021-05-21)
 =========
 
