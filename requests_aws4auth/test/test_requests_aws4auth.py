@@ -773,6 +773,24 @@ class AWS4Auth_AmzCanonicalQuerystring_Test(unittest.TestCase):
         encoded = self.auth.amz_cano_querystring(qs)
         self.assertEqual(encoded, expected)
 
+    def test_basic_ordering(self):
+        ret = AWS4Auth.amz_cano_querystring('foo=1&bar=2')
+        self.assertEqual(ret, 'bar=2&foo=1')
+
+    def test_hyphen_key(self):
+        '''a-foo should come after a. This requires key-sorting.
+           https://github.com/tedder/requests-aws4auth/issues/21
+        '''
+        ret = AWS4Auth.amz_cano_querystring('foo=1&bar=2&foo_bar=1&foo-bar=1')
+        self.assertEqual(ret, 'bar=2&foo=1&foo-bar=1&foo_bar=1')
+
+    def test_multi_params(self):
+        '''standard key-sorting doesn't ensure the values are in order.
+           https://github.com/tedder/requests-aws4auth/issues/49
+        '''
+        ret = AWS4Auth.amz_cano_querystring('foo=1&bar=2&bar=3&bar=1')
+        self.assertEqual(ret, 'bar=1&bar=2&bar=3&foo=1')
+
 
 class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
 
