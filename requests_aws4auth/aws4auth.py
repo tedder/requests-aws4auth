@@ -721,7 +721,7 @@ class AWS4Auth(AuthBase):
         qs_strings = []
         for name in sorted(qs_items):
             vals = qs_items[name]
-            for val in vals:
+            for val in sorted(vals):
                 qs_strings.append('='.join([name, val]))
         qs = '&'.join(qs_strings)
         if PY2:
