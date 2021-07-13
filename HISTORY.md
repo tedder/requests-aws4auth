@@ -1,3 +1,12 @@
+1.1.2 (TODO)
+=========
+
+**Bugfixes**
+
+- don't install markdown files, and especially not outside of our lib dir, see #51. Thanks @benjaminp.
+
+
+
 1.1.1 (2021-06-04)
 =========
 
