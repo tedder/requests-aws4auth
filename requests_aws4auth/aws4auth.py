@@ -562,7 +562,7 @@ class AWS4Auth(AuthBase):
         """
         Create the AWS authentication Canonical Request string.
 
-        req            -- Requests PreparedRequest object. Should already
+        req            -- Requests/Httpx PreparedRequest object. Should already
                           include an x-amz-content-sha256 header
         cano_headers   -- Canonical Headers section of Canonical Request, as
                           returned by get_canonical_headers()
@@ -570,11 +570,12 @@ class AWS4Auth(AuthBase):
                           get_canonical_headers()
 
         """
-        url = urlparse(req.url)
+        raw_url = str(req.url) # in case the url property is of type URL
+        url = urlparse(raw_url)
         path = self.amz_cano_path(url.path)
         # AWS handles "extreme" querystrings differently to urlparse
         # (see post-vanilla-query-nonunreserved test in aws_testsuite)
-        split = req.url.split('?', 1)
+        split = raw_url.split('?', 1)
         qs = split[1] if len(split) == 2 else ''
         qs = self.amz_cano_querystring(qs)
         payload_hash = req.headers['x-amz-content-sha256']
@@ -610,7 +611,7 @@ class AWS4Auth(AuthBase):
         # in the signed headers, but Requests doesn't include it in a
         # PreparedRequest
         if 'host' not in headers:
-            headers['host'] = urlparse(req.url).netloc.split(':')[0]
+            headers['host'] = urlparse(str(req.url)).netloc.split(':')[0]
         # Aggregate for upper/lowercase header name collisions in header names,
         # AMZ requires values of colliding headers be concatenated into a
         # single header with lowercase name.  Although this is not possible with
