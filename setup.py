@@ -44,6 +44,9 @@ setup(
     license='MIT License',
     keywords='requests authentication amazon web services aws s3 REST',
     install_requires=['requests', 'six'],
+    extras_require={
+        'httpx': ['httpx',]
+    },
     packages=['requests_aws4auth'],
     package_data={'requests_aws4auth': ['test/requests_aws4auth_test.py']},
     classifiers=[
