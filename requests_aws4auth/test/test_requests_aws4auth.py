@@ -45,6 +45,7 @@ except ImportError:
     from urlparse import urlparse
 
 import requests
+import httpx
 
 from requests_aws4auth import AWS4Auth
 from requests_aws4auth.aws4signingkey import AWS4SigningKey
@@ -810,6 +811,20 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
             with self.assertRaises(requests.exceptions.InvalidHeader):
                 rp = req.prepare()
 
+    def test_invalid_header_using_httpx(self):
+        headers = [
+            'My-Header1: a',
+            'My-Header2: "a   b   c"',
+            "My-Header3:\nab"
+        ]
+
+        for h_to_test in headers:
+            h_dict = dict([item.split(':') for item in [h_to_test]])
+            req = httpx.Request('GET',
+                                'http://iam.amazonaws.com',
+                                headers=h_dict)
+            req._prepare({})
+
     def test_headers_amz_example(self):
         """
         Using example from:
@@ -827,6 +842,37 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
                                'http://iam.amazonaws.com',
                                headers=headers)
         req = req.prepare()
+        include = list(req.headers)
+        result = AWS4Auth.get_canonical_headers(req, include=include)
+        cano_headers, signed_headers = result
+        expected = [
+            'content-type:application/x-www-form-urlencoded; charset=utf-8',
+            'host:iam.amazonaws.com',
+            'my-header1:a b c',
+            'my-header2:"a   b   c"',
+            'x-amz-date:20120228T030031Z']
+        expected = '\n'.join(expected) + '\n'
+        self.assertEqual(cano_headers, expected)
+        expected = 'content-type;host;my-header1;my-header2;x-amz-date'
+        self.assertEqual(signed_headers, expected)
+
+    def test_headers_amz_example_using_httpx(self):
+        """
+        Using example from:
+        http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
+
+        """
+        hdr_text = [
+            'host:iam.amazonaws.com',
+            'Content-type:application/x-www-form-urlencoded; charset=utf-8',
+            'My-header1:a   b   c ',
+            'x-amz-date:20120228T030031Z',
+            'My-Header2:"a   b   c"']
+        headers = dict([item.split(':') for item in hdr_text])
+        req = httpx.Request('GET',
+                               'http://iam.amazonaws.com',
+                               headers=headers)
+        req._prepare({})
         include = list(req.headers)
         result = AWS4Auth.get_canonical_headers(req, include=include)
         cano_headers, signed_headers = result
@@ -876,6 +922,22 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         cano_hdrs, signed_hdrs = result
         expected = 'host:amazonaws.com\n'
         self.assertEqual(cano_hdrs, expected)
+
+    def test_netloc_port_using_httpx(self):
+        """
+        Test that change in d190dcb doesn't regress - strip port from netloc
+        before generating signature when Host header is not already present in
+        request.
+
+        """
+        req = httpx.Request('GET', 'http://amazonaws.com:8443')
+        req._prepare({})
+        self.assertIn('host', req.headers)
+        result = AWS4Auth.get_canonical_headers(req, include=['host'])
+        cano_hdrs, signed_hdrs = result
+        expected = 'host:amazonaws.com:8443\n'
+        self.assertEqual(cano_hdrs, expected)
+
 
 
 class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
