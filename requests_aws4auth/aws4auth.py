@@ -400,6 +400,8 @@ class AWS4Auth(AuthBase):
         if hasattr(req, 'body') and req.body is not None:
             self.encode_body(req)
             content_hash = hashlib.sha256(req.body)
+        elif hasattr(req, 'content') and req.content is not None:
+            content_hash = hashlib.sha256(req.content)
         else:
             content_hash = hashlib.sha256(b'')
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
