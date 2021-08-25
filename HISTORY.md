@@ -4,7 +4,7 @@
 **Bugfixes**
 
 - don't install markdown files, and especially not outside of our lib dir, see #51. Thanks @benjaminp.
-
+- remove deprecated python 2.7 and python 3.5.
 
 
 1.1.1 (2021-06-04)
