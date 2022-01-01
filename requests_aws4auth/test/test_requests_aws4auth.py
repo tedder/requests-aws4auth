@@ -40,9 +40,10 @@ import datetime
 from errno import ENOENT
 
 try:
-    from urllib.parse import urlparse
+    from urllib.parse import quote, urlparse, urlunparse
 except ImportError:
-    from urlparse import urlparse
+    from urllib import quote
+    from urlparse import urlparse, urlunparse
 
 import requests
 import httpx
@@ -177,7 +178,15 @@ def request_from_text(text):
                        path])
     body = '\n'.join(lines[idx + 1:])
     req = requests.Request(method, url, headers=headers, data=body)
-    return req.prepare()
+    prep = req.prepare()
+    # AWS4 testsuite includes query string test cases that are corrected by requests auto-quoting
+    # undo auto-quoting of the query string by restoring original query and fragment
+    orig_parts = urlparse(url)
+    prep_parts = urlparse(prep.url)
+    restored_url = urlunparse((prep_parts.scheme, prep_parts.netloc, prep_parts.path, prep_parts.params,
+                               orig_parts.query, orig_parts.fragment))
+    prep.url = restored_url
+    return prep
 
 
 class AWS4_SigningKey_Test(unittest.TestCase):
@@ -791,6 +800,31 @@ class AWS4Auth_AmzCanonicalQuerystring_Test(unittest.TestCase):
         '''
         ret = AWS4Auth.amz_cano_querystring('foo=1&bar=2&bar=3&bar=1')
         self.assertEqual(ret, 'bar=1&bar=2&bar=3&foo=1')
+
+    def test_encoded_ampersand(self):
+        q = quote('a&b', safe='')
+        ret = AWS4Auth.amz_cano_querystring('foo=%s&bar=1' % q)
+        self.assertEqual(ret, 'bar=1&foo=%s' % q)
+
+    def test_encoded_equal(self):
+        q = quote('a=b', safe='')
+        ret = AWS4Auth.amz_cano_querystring('foo=%s&bar=1' % q)
+        self.assertEqual(ret, 'bar=1&foo=%s' % q)
+
+    def test_encoded_plus(self):
+        q = quote('a+b', safe='')
+        ret = AWS4Auth.amz_cano_querystring('foo=%s&bar=1' % q)
+        self.assertEqual(ret, 'bar=1&foo=%s' % q)
+
+    def test_encoded_space(self):
+        q = quote('a b', safe='')
+        ret = AWS4Auth.amz_cano_querystring('foo=%s&bar=1' % q)
+        self.assertEqual(ret, 'bar=1&foo=%s' % q)
+
+    def test_encoded_path(self):
+        q = quote('/?a=b&c=d', safe='')
+        ret = AWS4Auth.amz_cano_querystring('foo=%s&bar=1' % q)
+        self.assertEqual(ret, 'bar=1&foo=%s' % q)
 
 
 class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
