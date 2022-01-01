@@ -704,18 +704,16 @@ class AWS4Auth(AuthBase):
         qs -- querystring
 
         """
-        safe_qs_amz_chars = '&=+'
         safe_qs_unresvd = '-_.~'
         # If Python 2, switch to working entirely in str
         # as quote() has problems with Unicode
         if PY2:
             qs = qs.encode('utf-8')
-            safe_qs_amz_chars = safe_qs_amz_chars.encode()
             safe_qs_unresvd = safe_qs_unresvd.encode()
-        qs = unquote(qs)
         space = b' ' if PY2 else ' '
         qs = qs.split(space)[0]
-        qs = quote(qs, safe=safe_qs_amz_chars)
+        # prevent parse_qs from interpreting semicolon as an alternative delimiter to ampersand
+        qs = qs.replace(';', '%3B')
         qs_items = {}
         for name, vals in parse_qs(qs, keep_blank_values=True).items():
             name = quote(name, safe=safe_qs_unresvd)
