@@ -248,7 +248,7 @@ Version release notes
 
 - update `HISTORY.md`
 - update `requests_aws4auth/__init__.py`
-- cut a branch on github
+- create a [release](https://github.com/tedder/requests-aws4auth/releases) on github
 
 prep:
 ```
