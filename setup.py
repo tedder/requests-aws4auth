@@ -49,6 +49,7 @@ setup(
     },
     packages=['requests_aws4auth'],
     package_data={'requests_aws4auth': ['test/requests_aws4auth_test.py']},
+    python_requires=">=3.3",
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
