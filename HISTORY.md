@@ -1,10 +1,13 @@
 1.1.2 (TODO)
 =========
 
-**Bugfixes**
+**Changes**
 
 - don't install markdown files, and especially not outside of our lib dir, see #51. Thanks @benjaminp.
-- remove deprecated python 2.7 and python 3.5.
+- prevent unquoting of query string reserved characters, see #60. Thanks @mliarakos.
+- Add support for files as request body, see see #58. Thanks @USSRLivesOn.
+- remove deprecated python 2.7 and python 3.5. Currently testing against 3.8 and 3.9.
+- renamed main branch to 'main'
 
 
 1.1.1 (2021-06-04)
