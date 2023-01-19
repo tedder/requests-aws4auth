@@ -615,7 +615,15 @@ class AWS4Auth(AuthBase):
         # in the signed headers, but Requests doesn't include it in a
         # PreparedRequest
         if 'host' not in headers:
-            headers['host'] = urlparse(str(req.url)).netloc.split(':')[0]
+            purl = urlparse(str(req.url))
+            netloc = purl.netloc
+            # Python's http client only includes the port if it is non-default,
+            # see http.client.HTTPConnection.putrequest. The request URL, on the
+            # other hand, might explicitly include it.
+            if ((purl.port == 80 and purl.scheme == 'http')
+                or (purl.port == 443 and purl.scheme == 'https')):
+                netloc = netloc.rsplit(":", 1)[0]
+            headers['host'] = netloc
         # Aggregate for upper/lowercase header name collisions in header names,
         # AMZ requires values of colliding headers be concatenated into a
         # single header with lowercase name.  Although this is not possible with
