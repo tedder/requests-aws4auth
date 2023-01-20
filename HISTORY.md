@@ -1,4 +1,16 @@
-1.1.2 (TODO)
+1.2.0 (2023-01-20)
+=========
+
+**Bugfixes**
+
+- Fix #34, port numbers on header, with #63. Thanks @phillipberndt.
+
+**Changes**
+
+- test against 3.10. Currently supporting 3.8-3.10.
+- small fixup to flake8 config
+
+1.1.2 (2022-03-24)
 =========
 
 **Changes**
