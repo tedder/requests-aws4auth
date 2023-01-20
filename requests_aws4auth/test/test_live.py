@@ -228,4 +228,3 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         response = requests.post(url, auth=auth, headers=headers, data=body)
         response.connection.close()
         self.assertTrue(response.ok)
-

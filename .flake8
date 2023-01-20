@@ -1,7 +1,12 @@
 [flake8]
 max-line-length = 120
-ignore = E701, #allow multi on same line
+ignore =
+  #allow multi on same line
+  E701,
   F401,F821,
-  W503,W504,W505, # default ignored
-  E741 # allow short vars
-  F841 # unused vars are needed for safety
+  # default ignored
+  W503,W504,W505,
+  # allow short vars
+  E741
+  # unused vars are needed for safety
+  F841
