@@ -259,7 +259,7 @@ build and release, creds in `~/.pypirc`:
 ```
 rm -f dist/*; \
 python3 setup.py sdist bdist_wheel && \
-python3 -m twine upload --repository testpypi dist/* && \
+python3 -m twine upload --repository testpypi_requests_aws4auth dist/* && \
 python3 -m twine upload --repository pypi dist/*
 ```
 

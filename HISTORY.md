@@ -1,3 +1,11 @@
+1.2.1 (2023-01-25)
+=========
+
+**Bugfixes**
+
+- Actually fix #34. Build 1.2.0 was not fully released.
+
+
 1.2.0 (2023-01-20)
 =========
 

@@ -199,4 +199,4 @@ del aws4auth
 del aws4signingkey
 del exceptions
 
-__version__ = '1.2.0'
+__version__ = '1.2.1'
