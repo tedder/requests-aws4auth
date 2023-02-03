@@ -949,7 +949,7 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         request.
 
         """
-        req = requests.Request('GET', 'https://amazonaws.com:443')
+        req = requests.Request('GET', 'http://amazonaws.com:8443')
         preq = req.prepare()
         self.assertNotIn('host', preq.headers)
         result = AWS4Auth.get_canonical_headers(preq, include=['host'])
