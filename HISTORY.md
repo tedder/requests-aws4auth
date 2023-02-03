@@ -1,3 +1,10 @@
+1.2.2 (2023-02-02)
+=========
+
+**Bugfixes**
+
+- The 1.2.0/1.2.1 releases had a regression error. The fix of #63 has been reverted.
+
 1.2.1 (2023-01-25)
 =========
 
