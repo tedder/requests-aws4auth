@@ -1,3 +1,10 @@
+1.2.3 (2023-05-03)
+=========
+
+**Changes**
+
+- Add manifest file so tarball installs succeed, #66. Thanks @jantman.
+
 1.2.2 (2023-02-02)
 =========
 
