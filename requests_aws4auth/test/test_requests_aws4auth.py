@@ -942,14 +942,16 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         self.assertEqual(cano_headers, cano_expected)
         self.assertEqual(signed_headers, signed_expected)
 
-    def test_netloc_port(self):
+    def test_netloc_port_is_stripped_for_standard_port(self):
         """
-        Test that change in d190dcb doesn't regress - strip port from netloc
-        before generating signature when Host header is not already present in
-        request.
+        Test that change in d190dcb doesn't regress: The Host header is not
+        part of the prepared request, but generated later, and the port is
+        stripped from that header if it is the standard HTTPS port.  This
+        verifies that if the URL explicitly contains the port the library still
+        generates a signature with the correct Host header.
 
         """
-        req = requests.Request('GET', 'http://amazonaws.com:8443')
+        req = requests.Request('GET', 'https://amazonaws.com:443')
         preq = req.prepare()
         self.assertNotIn('host', preq.headers)
         result = AWS4Auth.get_canonical_headers(preq, include=['host'])
@@ -957,21 +959,56 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         expected = 'host:amazonaws.com\n'
         self.assertEqual(cano_hdrs, expected)
 
-    def test_netloc_port_using_httpx(self):
+    def test_netloc_port_is_kept_for_non_standard_port(self):
         """
-        Test that change in d190dcb doesn't regress - strip port from netloc
-        before generating signature when Host header is not already present in
-        request.
+        The Host header is not part of the prepared request, but generated
+        later, and the port is kept in the header if it is not the standard
+        HTTPS port. d190dcb has a bug that also strips non-standard ports from
+        the signature, causing signature and host header to mismatch. This is a
+        regression test for that bug.
 
         """
-        req = httpx.Request('GET', 'http://amazonaws.com:8443')
+        req = requests.Request('GET', 'https://amazonaws.com:8443')
+        preq = req.prepare()
+        self.assertNotIn('host', preq.headers)
+        result = AWS4Auth.get_canonical_headers(preq, include=['host'])
+        cano_hdrs, signed_hdrs = result
+        expected = 'host:amazonaws.com:8443\n'
+        self.assertEqual(cano_hdrs, expected)
+
+    def test_netloc_port_is_stripped_for_standard_port_using_httpx(self):
+        """
+        Test that change in d190dcb doesn't regress: The Host header is part of
+        the prepared request with httpx, and the port is stripped from that
+        header if it is the standard HTTPS port. This verifies that if the URL
+        explicitly contains the port the library generates a signature
+        with the correct Host header.
+
+        """
+        req = httpx.Request('GET', 'https://amazonaws.com:443')
+        req._prepare({})
+        self.assertIn('host', req.headers)
+        result = AWS4Auth.get_canonical_headers(req, include=['host'])
+        cano_hdrs, signed_hdrs = result
+        expected = 'host:amazonaws.com\n'
+        self.assertEqual(cano_hdrs, expected)
+
+    def test_netloc_port_is_kept_for_non_standard_port_using_httpx(self):
+        """
+        Test that change in d190dcb doesn't regress: The Host header is part of
+        the prepared request with httpx, and the port is kept in the header if
+        it is not the standard HTTPS port. This verifies that if the URL
+        explicitly contains the port the library generates a signature with the
+        correct Host header.
+
+        """
+        req = httpx.Request('GET', 'https://amazonaws.com:8443')
         req._prepare({})
         self.assertIn('host', req.headers)
         result = AWS4Auth.get_canonical_headers(req, include=['host'])
         cano_hdrs, signed_hdrs = result
         expected = 'host:amazonaws.com:8443\n'
         self.assertEqual(cano_hdrs, expected)
-
 
 
 class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
