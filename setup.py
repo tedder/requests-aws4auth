@@ -1,12 +1,11 @@
 import os
-import io
 import codecs
 import re
 from setuptools import setup
 
 
 def read(*names):
-    with io.open(
+    with open(
         os.path.join(os.path.dirname(__file__), *names),
         encoding='utf-8'
     ) as f:
@@ -43,7 +42,7 @@ setup(
     download_url=('https://github.com/tedder/requests-aws4auth/tarball/' + version),
     license='MIT License',
     keywords='requests authentication amazon web services aws s3 REST',
-    install_requires=['requests', 'six'],
+    install_requires=['requests'],
     extras_require={
         'httpx': ['httpx',]
     },

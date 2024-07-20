@@ -7,14 +7,10 @@ authentication version 4 signing keys.
 # Licensed under the MIT License:
 # http://opensource.org/licenses/MIT
 
-
-from __future__ import unicode_literals
-
 import hmac
 import hashlib
 from warnings import warn
 from datetime import datetime
-from six import text_type
 
 
 class AWS4SigningKey:
@@ -127,7 +123,7 @@ class AWS4SigningKey:
         msg -- message to sign. unicode or bytes.
 
         """
-        if isinstance(msg, text_type):
+        if isinstance(msg, str):
             msg = msg.encode('utf-8')
         return hmac.new(key, msg, hashlib.sha256).digest()
 
