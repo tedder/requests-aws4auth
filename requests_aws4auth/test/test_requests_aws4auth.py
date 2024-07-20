@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 """
 Tests for requests-aws4auth package.
@@ -25,25 +24,16 @@ cases covered by the suite will be missed.
 # Licensed under the MIT License:
 # http://opensource.org/licenses/MIT
 
-
-from __future__ import unicode_literals, print_function
-
-import sys
 import os
 import unittest
 import re
 import hashlib
 import itertools
-import json
 import warnings
 import datetime
 from errno import ENOENT
 
-try:
-    from urllib.parse import quote, urlparse, urlunparse
-except ImportError:
-    from urllib import quote
-    from urlparse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 import requests
 import httpx
@@ -51,8 +41,6 @@ import httpx
 from requests_aws4auth import AWS4Auth
 from requests_aws4auth.aws4signingkey import AWS4SigningKey
 from requests_aws4auth.exceptions import DateFormatError, NoSecretKeyError
-from six import PY2, u
-
 
 class SimpleNamespace:
     pass
@@ -113,10 +101,10 @@ class AmzAws4TestSuite:
                   'from here: http://docs.aws.amazon.com/general/latest/gr/'
                   'samples/aws4_testsuite.zip')
         if not os.path.exists(path):
-            raise IOError(ENOENT, errmsg)
+            raise OSError(ENOENT, errmsg)
         files = sorted(os.listdir(path))
         if not files:
-            raise IOError(ENOENT, errmsg)
+            raise OSError(ENOENT, errmsg)
         grouped = itertools.groupby(files, lambda x: os.path.splitext(x)[0])
         data = {}
         for group_name, items in grouped:
@@ -128,12 +116,8 @@ class AmzAws4TestSuite:
             for item in items:
                 filepath = os.path.join(path, item)
                 file_ext = os.path.splitext(item)[1]
-                if PY2:
-                    with open(filepath, 'U') as f:
-                        content = unicode(f.read(), encoding='utf-8')
-                else:
-                    with open(filepath, encoding='utf-8') as f:
-                        content = f.read()
+                with open(filepath, encoding='utf-8') as f:
+                    content = f.read()
                 group[file_ext] = content
             data[group_name] = group
         return data
@@ -141,7 +125,7 @@ class AmzAws4TestSuite:
 
 try:
     amz_aws4_testsuite = AmzAws4TestSuite()
-except IOError as e:
+except OSError as e:
     if e.errno == ENOENT:
         amz_aws4_testsuite = None
     else:
@@ -162,7 +146,7 @@ def request_from_text(text):
     for idx, line in enumerate(lines[1:], start=1):
         if not line:
             break
-        hdr, val = [item.strip() for item in line.split(':', 1)]
+        hdr, val = (item.strip() for item in line.split(':', 1))
         hdr = hdr.lower()
         vals = headers.setdefault(hdr, [])
         vals.append(val)
@@ -239,14 +223,8 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         warnings.resetwarnings()
         with warnings.catch_warnings(record=True) as w:
             obj = AWS4SigningKey('secret_key', 'region', 'service')
-            if PY2:
-                warnings.simplefilter('always')
-                obj.amz_date
-                self.assertEqual(len(w), 1)
-                self.assertEqual(w[-1].category, DeprecationWarning)
-            else:
-                warnings.simplefilter('ignore')
-                self.assertWarns(DeprecationWarning, getattr, obj, 'amz_date')
+            warnings.simplefilter('ignore')
+            self.assertWarns(DeprecationWarning, getattr, obj, 'amz_date')
 
     def test_sign_sha256_unicode_msg(self):
         key = b'The quick brown fox jumps over the lazy dog'
@@ -257,7 +235,7 @@ class AWS4_SigningKey_Test(unittest.TestCase):
                     142, 77, 204, 122, 185, 19, 38, 15, 145, 249, 113, 69,
                     178, 30, 131, 244, 230, 190, 246, 23]
         hsh = AWS4SigningKey.sign_sha256(key, msg)
-        hsh = [ord(x) for x in hsh] if PY2 else list(hsh)
+        hsh = list(hsh)
         self.assertEqual(hsh, expected)
 
     def test_sign_sha256_bytes_msg(self):
@@ -269,7 +247,7 @@ class AWS4_SigningKey_Test(unittest.TestCase):
                     142, 77, 204, 122, 185, 19, 38, 15, 145, 249, 113, 69,
                     178, 30, 131, 244, 230, 190, 246, 23]
         hsh = AWS4SigningKey.sign_sha256(key, msg)
-        hsh = [ord(x) for x in hsh] if PY2 else list(hsh)
+        hsh = list(hsh)
         self.assertEqual(hsh, expected)
 
     def test_signing_key_phases(self):
@@ -296,7 +274,7 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         result = AWS4SigningKey.generate_key(secret_key, region,
                                              service, date, intermediates=True)
         for i, hsh in enumerate(result):
-            hsh = [ord(x) for x in hsh] if PY2 else list(hsh)
+            hsh = list(hsh)
             self.assertEqual(hsh, expected[i], msg='Item number {}'.format(i))
 
     def test_generate_key(self):
@@ -313,7 +291,7 @@ class AWS4_SigningKey_Test(unittest.TestCase):
                     171, 12, 225, 248, 46, 105, 41, 194, 98, 237, 21, 229,
                     169, 76, 144, 239, 209, 227, 176, 231]
         key = AWS4SigningKey.generate_key(secret_key, region, service, date)
-        key = [ord(x) for x in key] if PY2 else list(key)
+        key = list(key)
         self.assertEqual(key, expected)
 
     def test_instantiation_generate_key(self):
@@ -330,7 +308,7 @@ class AWS4_SigningKey_Test(unittest.TestCase):
                     171, 12, 225, 248, 46, 105, 41, 194, 98, 237, 21, 229,
                     169, 76, 144, 239, 209, 227, 176, 231]
         key = AWS4SigningKey(secret_key, region, service, date).key
-        key = [ord(x) for x in key] if PY2 else list(key)
+        key = list(key)
         self.assertEqual(key, expected)
 
 
@@ -338,7 +316,7 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
 
     def test_instantiate_from_args(self):
         test_date = datetime.datetime.utcnow().strftime('%Y%m%d')
-        test_inc_hdrs = set(['a', 'b', 'c'])
+        test_inc_hdrs = {'a', 'b', 'c'}
         auth = AWS4Auth('access_id',
                         'secret_key',
                         'region',
@@ -497,7 +475,7 @@ class AWS4Auth_Date_Test(unittest.TestCase):
             'Sun Jan 5 01:01:01 1980': (1980, 1, 5),
             '1985-02-06T01:01:01+01:00': (1985, 2, 6),
         }
-        tests = dict([(k, datetime.date(*v)) for k, v in tests.items()])
+        tests = {k: datetime.date(*v) for k, v in tests.items()}
         for date_str, check in tests.items():
             req = requests.Request('GET', 'http://blah.com')
             req = req.prepare()
