@@ -1,3 +1,12 @@
+1.3.0 (2024-07-21)
+=========
+
+**Changes**
+
+- test against 3.12. Currently supporting 3.8-3.12.
+- add nonstandard port test, #68. Thanks @phillipberndt.
+- remove `six` and support for any python before 3.7. Thanks @hugovk.
+
 1.2.3 (2023-05-03)
 =========
 
