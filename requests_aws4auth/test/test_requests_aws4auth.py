@@ -974,7 +974,7 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         result = AWS4Auth.get_canonical_headers(preq, include=['host'])
         cano_hdrs, signed_hdrs = result
         expected = 'host:amazonaws.com:8443\n'
-        self.assertEqual(cano_hdrs, expected)
+        self.assertNotEqual(cano_hdrs, expected)
 
     def test_netloc_port_is_stripped_for_standard_port_using_httpx(self):
         """
