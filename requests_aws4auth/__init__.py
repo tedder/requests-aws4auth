@@ -46,7 +46,7 @@ Install via pip:
 
 requests-aws4auth requires the `Requests`_ library by Kenneth Reitz.
 
-requests-aws4auth supports Python 3.3 and up. Python 2.7 may work but is not supported after the version 1.0.x tree.
+requests-aws4auth supports Python 3.7 and up.
 
 Basic usage
 -----------
@@ -199,4 +199,4 @@ del aws4auth
 del aws4signingkey
 del exceptions
 
-__version__ = '1.3.0'
+__version__ = '1.3.1'

@@ -1,3 +1,10 @@
+1.3.1 (2024-07-21)
+=========
+
+**Changes**
+
+- explicitly set python requirement to 3.7.
+
 1.3.0 (2024-07-21)
 =========
 
