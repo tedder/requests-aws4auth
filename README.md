@@ -250,6 +250,11 @@ Version release notes
 - update `requests_aws4auth/__init__.py`
 - create a [release](https://github.com/tedder/requests-aws4auth/releases) on github
 
+docker env:
+```
+docker run -v `pwd`:/opt/app/ -v ~/.pypirc:/root/.pypirc  -it python:3.12 /bin/bash
+```
+
 prep:
 ```
 python3 -m pip install --user --upgrade setuptools wheel testresources twine
@@ -259,7 +264,7 @@ build and release, creds in `~/.pypirc`:
 ```
 rm -f dist/*; \
 python3 setup.py sdist bdist_wheel && \
-python3 -m twine upload --repository testpypi_requests_aws4auth dist/* && \
+python3 -m twine upload --repository testpypi dist/* && \
 python3 -m twine upload --repository pypi dist/*
 ```
 
