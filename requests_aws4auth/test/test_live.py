@@ -23,6 +23,11 @@ import os
 import unittest
 import datetime
 
+import requests
+
+from requests_aws4auth import AWS4Auth
+from requests_aws4auth.aws4signingkey import AWS4SigningKey
+
 live_access_id = os.getenv('AWS_ACCESS_ID')
 live_secret_key = os.getenv('AWS_ACCESS_KEY')
 
@@ -196,7 +201,13 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         service = path_qs.split('.')[0]
         url = 'https://' + path_qs
         region = 'us-east-1'
-        auth = AWS4Auth(live_access_id, live_secret_key, region, service)
+        auth = AWS4Auth(
+            live_access_id,
+            live_secret_key,
+            region,
+            service,
+            session_token=os.getenv('AWS_SESSION_TOKEN'),
+        )
         response = requests.request(method, url, auth=auth,
                                     data=body, headers=headers)
         # suppress socket close warnings
@@ -210,7 +221,11 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         dt = datetime.datetime.now(datetime.timezone.utc)
         date = dt.strftime('%Y%m%d')
         sig_key = AWS4SigningKey(live_secret_key, region, service, date)
-        auth = AWS4Auth(live_access_id, sig_key)
+        auth = AWS4Auth(
+            live_access_id,
+            sig_key,
+            session_token=os.getenv('AWS_SESSION_TOKEN'),
+        )
         headers = {'Content-Type': 'application/json',
                    'X-Amz-Date': dt.strftime('%Y%m%dT%H%M%SZ'),
                    'X-Amz-Client-Context':
