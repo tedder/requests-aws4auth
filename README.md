@@ -252,7 +252,7 @@ Version release notes
 
 docker env:
 ```
-docker run -v `pwd`:/opt/app/ -v ~/.pypirc:/root/.pypirc  -it python:3.12 /bin/bash
+docker run -w /opt/app -v "$(pwd)":/opt/app -v ~/.pypirc:/root/.pypirc -it python:3.12 /bin/bash
 ```
 
 prep:
