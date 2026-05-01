@@ -1,3 +1,12 @@
+1.3.2 (2026-05-01)
+=========
+
+**Changes**
+
+- Fix Deprecated datetime.datetime.utcnow(), #77 #78. Thanks @andercarrera.
+- Unit test and integration test updates, #78.
+
+
 1.3.1 (2024-07-21)
 =========
 
