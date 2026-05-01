@@ -196,10 +196,10 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         self.assertEqual(obj.secret_key, 'secret_key')
 
     def test_date(self):
-        test_date = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d')
+        test_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')
         obj = AWS4SigningKey('secret_key', 'region', 'service')
         if obj.date != test_date:
-            test_date = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d')
+            test_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')
         self.assertEqual(obj.date, test_date)
 
     def test_amz_date(self):
@@ -209,10 +209,10 @@ class AWS4_SigningKey_Test(unittest.TestCase):
         """
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')
-            test_date = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d')
+            test_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')
             obj = AWS4SigningKey('secret_key', 'region', 'service')
             if obj.amz_date != test_date:
-                test_date = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d')
+                test_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')
             self.assertEqual(obj.amz_date, test_date)
 
     def test_amz_date_warning(self):
@@ -315,7 +315,7 @@ class AWS4_SigningKey_Test(unittest.TestCase):
 class AWS4Auth_Instantiate_Test(unittest.TestCase):
 
     def test_instantiate_from_args(self):
-        test_date = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d')
+        test_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')
         test_inc_hdrs = {'a', 'b', 'c'}
         auth = AWS4Auth('access_id',
                         'secret_key',
@@ -334,7 +334,7 @@ class AWS4Auth_Instantiate_Test(unittest.TestCase):
         self.assertEqual(auth.signing_key.region, 'region')
         self.assertEqual(auth.signing_key.service, 'service')
         if test_date != auth.signing_key.date:
-            test_date = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d')
+            test_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')
         self.assertEqual(auth.signing_key.date, test_date)
         expected = '{}/region/service/aws4_request'.format(test_date)
         self.assertEqual(auth.signing_key.scope, expected)

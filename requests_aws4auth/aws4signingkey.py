@@ -10,7 +10,7 @@ authentication version 4 signing keys.
 import hmac
 import hashlib
 from warnings import warn
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class AWS4SigningKey:
@@ -82,7 +82,7 @@ class AWS4SigningKey:
 
         self.region = region
         self.service = service
-        self.date = date or datetime.utcnow().strftime('%Y%m%d')
+        self.date = date or datetime.now(timezone.utc).strftime('%Y%m%d')
         self.scope = '{}/{}/{}/aws4_request'.format(self.date, self.region, self.service)
         self.store_secret_key = store_secret_key
         self.secret_key = secret_key if self.store_secret_key else None

@@ -21,7 +21,7 @@ operations are performed!
 import json
 import os
 import unittest
-from datetime import UTC
+import datetime
 
 live_access_id = os.getenv('AWS_ACCESS_ID')
 live_secret_key = os.getenv('AWS_ACCESS_KEY')
@@ -207,7 +207,7 @@ class AWS4Auth_LiveService_Test(unittest.TestCase):
         url = 'https://mobileanalytics.us-east-1.amazonaws.com/2014-06-05/events'
         service = 'mobileanalytics'
         region = 'us-east-1'
-        dt = datetime.datetime.now(UTC)
+        dt = datetime.datetime.now(datetime.timezone.utc)
         date = dt.strftime('%Y%m%d')
         sig_key = AWS4SigningKey(live_secret_key, region, service, date)
         auth = AWS4Auth(live_access_id, sig_key)

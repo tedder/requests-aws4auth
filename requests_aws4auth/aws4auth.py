@@ -381,7 +381,7 @@ class AWS4Auth(AuthBase):
             # replace them with x-amz-header with current date and time
             if 'date' in req.headers: del req.headers['date']
             if 'x-amz-date' in req.headers: del req.headers['x-amz-date']
-            now = datetime.datetime.now(datetime.UTC)
+            now = datetime.datetime.now(datetime.timezone.utc)
             req_date = now.date()
             req.headers['x-amz-date'] = now.strftime('%Y%m%dT%H%M%SZ')
         req_scope_date = req_date.strftime('%Y%m%d')
