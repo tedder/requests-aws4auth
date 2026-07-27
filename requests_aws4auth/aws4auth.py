@@ -401,6 +401,12 @@ class AWS4Auth(AuthBase):
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
         if self.session_token:
             req.headers['x-amz-security-token'] = self.session_token
+        # Pin the Host header rather than leaving it to be generated at send
+        # time. Signing a value the client then disagrees with is what caused
+        # #34/#65/#79; setting it here makes the signed value and the sent
+        # value the same string by construction.
+        if 'host' not in req.headers:
+            req.headers['host'] = self.get_host_header(req.url)
 
         # generate signature
         result = self.get_canonical_headers(req, self.include_hdrs)
@@ -580,6 +586,42 @@ class AWS4Auth(AuthBase):
         cano_req = '\n'.join(req_parts)
         return cano_req
 
+    @staticmethod
+    def get_host_header(url):
+        """
+        Return the Host header value that will be sent for this URL.
+
+        Requests doesn't put a Host header on a PreparedRequest; the header is
+        generated later, when the request is sent. AWS requires host to be
+        signed, so it has to be computed here, and it has to match what is
+        eventually sent or the service will compute a different signature and
+        reject the request.
+
+        Python's http.client only includes the port when it is not the default
+        for the scheme (see http.client.HTTPConnection.putrequest). Note that
+        "default" is scheme-dependent: 443 is default for https but not for
+        http, so http://host:443 keeps its port on the wire. IPv6 literals are
+        bracketed and contain colons, so the port cannot be found by splitting
+        on the first colon.
+
+        """
+        parsed = urlparse(str(url))
+        netloc = parsed.netloc
+        # Credentials are part of netloc but are not sent in the Host header.
+        if '@' in netloc:
+            netloc = netloc.rsplit('@', 1)[1]
+        try:
+            port = parsed.port
+        except ValueError:
+            # Not a usable port. Leave the netloc alone and let the HTTP
+            # client reject the URL when it tries to connect, which is what
+            # happens today.
+            return netloc
+        if ((port == 80 and parsed.scheme == 'http')
+                or (port == 443 and parsed.scheme == 'https')):
+            netloc = netloc.rsplit(':', 1)[0]
+        return netloc
+
     @classmethod
     def get_canonical_headers(cls, req, include=None):
         """
@@ -607,7 +649,7 @@ class AWS4Auth(AuthBase):
         # in the signed headers, but Requests doesn't include it in a
         # PreparedRequest
         if 'host' not in headers:
-            headers['host'] = urlparse(str(req.url)).netloc.split(':')[0]
+            headers['host'] = cls.get_host_header(req.url)
         # Aggregate for upper/lowercase header name collisions in header names,
         # AMZ requires values of colliding headers be concatenated into a
         # single header with lowercase name.  Although this is not possible with

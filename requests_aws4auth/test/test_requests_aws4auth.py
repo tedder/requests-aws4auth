@@ -943,9 +943,13 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         """
         The Host header is not part of the prepared request, but generated
         later, and the port is kept in the header if it is not the standard
-        HTTPS port. d190dcb has a bug that also strips non-standard ports from
-        the signature, causing signature and host header to mismatch. This is a
-        regression test for that bug.
+        HTTPS port. The signature has to keep it too, or it will not match the
+        request that gets sent.
+
+        This assertion was inverted when it was added in #68: it asserted the
+        signature did *not* match the wire, documenting the bug rather than
+        testing the behaviour, while its httpx twin below asserted the
+        opposite for the same URL.
 
         """
         req = requests.Request('GET', 'https://amazonaws.com:8443')
@@ -954,7 +958,7 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         result = AWS4Auth.get_canonical_headers(preq, include=['host'])
         cano_hdrs, signed_hdrs = result
         expected = 'host:amazonaws.com:8443\n'
-        self.assertNotEqual(cano_hdrs, expected)
+        self.assertEqual(cano_hdrs, expected)
 
     def test_netloc_port_is_stripped_for_standard_port_using_httpx(self):
         """
@@ -1015,9 +1019,16 @@ def wire_host_header(url):
             pass
 
     parsed = urlparse(url)
+    netloc = parsed.netloc
+    # requests pulls credentials out of the URL and turns them into an auth
+    # header, so the connection -- and therefore the Host header -- never sees
+    # them. Model that here. test_requests_strips_credentials_from_host_header
+    # below checks this against a real socket rather than trusting it.
+    if '@' in netloc:
+        netloc = netloc.rsplit('@', 1)[1]
     conn_cls = (http.client.HTTPSConnection if parsed.scheme == 'https'
                 else http.client.HTTPConnection)
-    conn = conn_cls(parsed.netloc)
+    conn = conn_cls(netloc)
     conn.sock = CaptureSocket()
     conn.putrequest('GET', '/')
     conn.endheaders()
@@ -1043,6 +1054,11 @@ HOST_HEADER_URLS = [
     'https://[::1]:8443',
     'https://[::1]:443',
     'https://[::1]',
+    # Credentials live in the netloc but are never sent in the Host header.
+    'https://user:pass@amazonaws.com:8443',
+    'https://user:pass@amazonaws.com:443',
+    'https://user:pass@amazonaws.com',
+    'http://user@amazonaws.com:7480',
 ]
 
 
@@ -1104,6 +1120,50 @@ class AWS4Auth_HostHeaderMatchesWire_Test(unittest.TestCase):
                 preq = requests.Request('GET', url,
                                         headers={'Host': host}).prepare()
                 self.assertEqual(self.canonical_host(preq), host)
+
+    def test_requests_strips_credentials_from_host_header(self):
+        """
+        Credentials in the URL are part of the netloc but are not sent in the
+        Host header, so they must not be signed either. This checks the real
+        behaviour against a socket rather than trusting the oracle's model of
+        it, since http.client on its own will happily build a Host header
+        containing the credentials if handed a netloc with them in.
+
+        Note the old code signed 'user' here (everything before the first
+        colon), and 8e1417c would have signed 'user:pass@amazonaws.com:8443'.
+        Neither matches what is sent.
+
+        """
+        import threading
+        import http.server
+
+        received = {}
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                received['host'] = self.headers.get('Host')
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'ok')
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = 'http://user:pass@127.0.0.1:{}/'.format(port)
+            auth = AWS4Auth('id', 'secret', 'us-east-1', 's3')
+            requests.get(url, auth=auth)
+            self.assertEqual(received['host'], '127.0.0.1:{}'.format(port))
+            # What we sign has to be what the server saw.
+            preq = requests.Request('GET', url).prepare()
+            self.assertEqual(self.canonical_host(preq), received['host'])
+        finally:
+            server.shutdown()
+            server.server_close()
 
     def test_malformed_ports_are_rejected_before_signing(self):
         """
