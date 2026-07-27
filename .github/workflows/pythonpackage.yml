@@ -38,3 +38,75 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+  integration:
+    # The host header bug in #34/#65/#79 cannot be reproduced against AWS:
+    # every AWS endpoint is on 443, so the non-default-port path is
+    # unreachable there. These run against real SigV4 implementations bound to
+    # other ports, which is how the bug actually reaches users.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - server: minio
+            port: 9111
+          - server: radosgw
+            port: 7480
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest requests httpx
+
+    - name: Start MinIO on a non-default port
+      if: matrix.server == 'minio'
+      run: |
+        docker run -d --rm --name s3srv -p ${{ matrix.port }}:9000 \
+          -e MINIO_ROOT_USER=demoaccesskey123456 \
+          -e MINIO_ROOT_PASSWORD=demosecretkey1234567890abcdefghijklmnop \
+          minio/minio server /data
+
+    - name: Start RadosGW on port 7480
+      if: matrix.server == 'radosgw'
+      # Ceph's demo entrypoint seds the secret key into a config file, so the
+      # key must not contain slashes -- the AWS example key breaks it.
+      run: |
+        docker run -d --rm --name s3srv -p ${{ matrix.port }}:8080 \
+          -e CEPH_DAEMON=demo -e RGW_NAME=localhost -e MON_IP=127.0.0.1 \
+          -e CEPH_PUBLIC_NETWORK=0.0.0.0/0 -e CEPH_DEMO_UID=demo \
+          -e CEPH_DEMO_ACCESS_KEY=demoaccesskey123456 \
+          -e CEPH_DEMO_SECRET_KEY=demosecretkey1234567890abcdefghijklmnop \
+          quay.io/ceph/demo:latest-reef
+
+    - name: Wait for the endpoint to answer
+      run: |
+        for i in $(seq 1 30); do
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 \
+                 http://127.0.0.1:${{ matrix.port }}/ || true)
+          if [ -n "$code" ] && [ "$code" != "000" ]; then
+            echo "${{ matrix.server }} up after ~$((i*5))s (HTTP $code)"
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "${{ matrix.server }} never came up"; docker logs s3srv | tail -40
+        exit 1
+
+    - name: Integration tests
+      env:
+        AWS4_TEST_S3_ENDPOINT: http://127.0.0.1:${{ matrix.port }}
+        AWS4_TEST_S3_ACCESS_KEY: demoaccesskey123456
+        AWS4_TEST_S3_SECRET_KEY: demosecretkey1234567890abcdefghijklmnop
+      run: |
+        pytest requests_aws4auth/test/test_integration.py -v
+
+    - name: Server logs on failure
+      if: failure()
+      run: docker logs s3srv | tail -60

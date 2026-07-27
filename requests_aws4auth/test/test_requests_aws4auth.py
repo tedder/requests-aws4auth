@@ -26,6 +26,8 @@ cases covered by the suite will be missed.
 
 import datetime
 import hashlib
+import http.client
+import io
 import itertools
 import os
 import re
@@ -987,6 +989,145 @@ class AWS4Auth_GetCanonicalHeaders_Test(unittest.TestCase):
         cano_hdrs, signed_hdrs = result
         expected = 'host:amazonaws.com:8443\n'
         self.assertEqual(cano_hdrs, expected)
+
+
+def wire_host_header(url):
+    """
+    Return the Host header value Python's http.client will actually put on the
+    wire for this URL.
+
+    This is the oracle for the host header tests below. Whatever we sign has to
+    match what is sent, and the only authority on what is sent is the client
+    itself. Deriving the expected value here rather than hardcoding strings per
+    case means the expectations cannot drift if http.client's default-port rule
+    changes, and removes the chance of hand-writing a wrong expectation (see
+    the inverted assertion in AWS4Auth_GetCanonicalHeaders_Test).
+
+    """
+    class CaptureSocket(io.BytesIO):
+        def sendall(self, data):
+            self.write(data)
+
+        def makefile(self, *args, **kwargs):
+            return io.BytesIO(b'')
+
+        def close(self):
+            pass
+
+    parsed = urlparse(url)
+    conn_cls = (http.client.HTTPSConnection if parsed.scheme == 'https'
+                else http.client.HTTPConnection)
+    conn = conn_cls(parsed.netloc)
+    conn.sock = CaptureSocket()
+    conn.putrequest('GET', '/')
+    conn.endheaders()
+    for line in conn.sock.getvalue().decode().split('\r\n'):
+        if line.lower().startswith('host:'):
+            return line[len('host:'):].strip()
+    raise AssertionError('http.client emitted no Host header for {}'.format(url))
+
+
+# Every URL shape the host header logic has to get right. Ports that are
+# default for their scheme are stripped on the wire; everything else is kept,
+# including ports that are default for the *other* scheme. IPv6 literals
+# contain colons and must not be split on them.
+HOST_HEADER_URLS = [
+    'https://amazonaws.com',
+    'http://amazonaws.com',
+    'https://amazonaws.com:443',
+    'https://amazonaws.com:8443',
+    'http://amazonaws.com:80',
+    'http://amazonaws.com:7480',
+    'https://amazonaws.com:80',
+    'http://amazonaws.com:443',
+    'https://[::1]:8443',
+    'https://[::1]:443',
+    'https://[::1]',
+]
+
+
+class AWS4Auth_HostHeaderMatchesWire_Test(unittest.TestCase):
+    """
+    The canonical host used to build the signature must equal the Host header
+    that actually goes over the wire. If they differ the service recomputes a
+    different signature and rejects the request with SignatureDoesNotMatch.
+
+    See #34, #63, #65, #68 and #79 for the history here.
+
+    """
+
+    @staticmethod
+    def canonical_host(req):
+        cano_hdrs, _ = AWS4Auth.get_canonical_headers(req, include=['host'])
+        return cano_hdrs[len('host:'):].strip()
+
+    def test_signed_host_matches_wire_using_requests(self):
+        for url in HOST_HEADER_URLS:
+            with self.subTest(url=url):
+                preq = requests.Request('GET', url).prepare()
+                self.assertEqual(self.canonical_host(preq),
+                                 wire_host_header(url))
+
+    def test_signed_host_matches_wire_using_httpx(self):
+        for url in HOST_HEADER_URLS:
+            with self.subTest(url=url):
+                req = httpx.Request('GET', url)
+                req._prepare({})
+                self.assertEqual(self.canonical_host(req),
+                                 wire_host_header(url))
+
+    def test_requests_and_httpx_sign_the_same_host(self):
+        """
+        The signature must not depend on which HTTP client is used. This is the
+        invariant that was violated: httpx kept the port because it populates
+        Host itself, while requests dropped it because the library computed it.
+
+        """
+        for url in HOST_HEADER_URLS:
+            with self.subTest(url=url):
+                preq = requests.Request('GET', url).prepare()
+                hreq = httpx.Request('GET', url)
+                hreq._prepare({})
+                self.assertEqual(self.canonical_host(preq),
+                                 self.canonical_host(hreq))
+
+    def test_caller_supplied_host_is_used_verbatim(self):
+        """
+        An explicitly set Host header is the documented workaround for this
+        bug and must keep working untouched, port and all.
+
+        """
+        for url, host in [('https://amazonaws.com:8443', 'example.com:1234'),
+                          ('http://127.0.0.1:7480', '127.0.0.1:7480'),
+                          ('https://amazonaws.com', 'example.com')]:
+            with self.subTest(url=url, host=host):
+                preq = requests.Request('GET', url,
+                                        headers={'Host': host}).prepare()
+                self.assertEqual(self.canonical_host(preq), host)
+
+    def test_malformed_ports_are_rejected_before_signing(self):
+        """
+        urlparse().port raises ValueError on non-integer and out-of-range
+        ports, so host logic that reads .port could in principle raise from
+        inside the auth handler. In practice both clients reject these URLs
+        while building the request, before auth runs, so the signing path
+        never sees them. This documents that, so the concern doesn't get
+        rediscovered.
+
+        """
+        for url in ['https://amazonaws.com:notaport',
+                    'https://amazonaws.com:99999']:
+            with self.subTest(url=url, client='requests'):
+                with self.assertRaises(requests.exceptions.InvalidURL):
+                    requests.Request('GET', url).prepare()
+
+        # httpx rejects the non-integer port, and sets Host itself for the
+        # out-of-range one, so the library's host logic is bypassed there too.
+        with self.assertRaises(httpx.InvalidURL):
+            httpx.Request('GET', 'https://amazonaws.com:notaport')._prepare({})
+        req = httpx.Request('GET', 'https://amazonaws.com:99999')
+        req._prepare({})
+        self.assertIn('host', req.headers)
 
 
 class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
