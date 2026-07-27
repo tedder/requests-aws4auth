@@ -101,6 +101,22 @@ class S3CompatibleEndpoint_Test(unittest.TestCase):
         self.assertSignatureAccepted(h.status_code, h.text)
         self.assertEqual(r.status_code, h.status_code)
 
+    def test_credentials_in_url_still_accepted(self):
+        """
+        Credentials in the URL are part of the netloc but are not sent in the
+        Host header. Signing them, or signing only the part before the first
+        colon, both produce a signature the server rejects.
+
+        Passing auth= means requests ignores the URL credentials for
+        authentication, so these only affect how the host is derived.
+
+        """
+        from urllib.parse import urlparse
+        parsed = urlparse(endpoint)
+        url = '{}://user:pass@{}/'.format(parsed.scheme, parsed.netloc)
+        response = requests.get(url, auth=self.auth())
+        self.assertSignatureAccepted(response.status_code, response.text)
+
     def test_explicit_host_header_still_accepted(self):
         """
         Setting Host explicitly is the documented workaround for the bug and
