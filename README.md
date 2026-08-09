@@ -80,7 +80,8 @@ Basic usage
 >>> import requests
 >>> from requests_aws4auth import AWS4Auth
 >>> endpoint = 'http://s3-eu-west-1.amazonaws.com'
->>> auth = AWS4Auth('<ACCESS ID>', '<ACCESS KEY>', 'eu-west-1', 's3')
+>>> auth = AWS4Auth(access_id='<ACCESS_ID>', secret_key='<SECRET_KEY>',
+                        region='eu-west-1', service='s3')
 >>> response = requests.get(endpoint, auth=auth)
 >>> response.text
 <?xml version="1.0" encoding="UTF-8"?>
@@ -99,8 +100,9 @@ STS Temporary Credentials
 
 ``` {.sourceCode .python}
 >>> from requests_aws4auth import AWS4Auth
->>> auth = AWS4Auth('<ACCESS ID>', '<ACCESS KEY>', 'eu-west-1', 's3',
-                    session_token='<SESSION TOKEN>')
+>>> auth = AWS4Auth(access_id='<ACCESS_ID>', secret_key='<SECRET_KEY>',
+                        region='eu-west-1', service='s3',
+                        session_token='<SESSION_TOKEN>')
 ...
 ```
 
@@ -117,8 +119,8 @@ Dynamic STS Credentials using botocore RefreshableCredentials
 >>> from requests_aws4auth import AWS4Auth
 >>> from botocore.session import Session
 >>> credentials = Session().get_credentials()
->>> auth = AWS4Auth(region='eu-west-1', service='es',
-                    refreshable_credentials=credentials)
+>>> auth = AWS4Auth(refreshable_credentials=credentials,
+                        region='eu-west-1', service='es')
 ...
 ```
 
