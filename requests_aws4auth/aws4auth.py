@@ -255,10 +255,16 @@ class AWS4Auth(AuthBase):
                        If refreshable_credentials is set, the following arguments
                        are ignored: access_id, secret_key, signing_key,
                        session_token.
+        refresh_credentials_when_needed
+                    -- Must be supplied as keyword argument. If refreshable_credentials
+                       is provided and refresh_credentials_when_needed is set to True,
+                       then credentials will only be refreshed if needed instead of
+                       on each request. Defaults to False.
 
         """
         self.signing_key = None
         self.refreshable_credentials = kwargs.get('refreshable_credentials', None)
+        self.refresh_credentials_when_needed = kwargs.get('refresh_credentials_when_needed', False)
         if self.refreshable_credentials:
             # instantiate from refreshable_credentials
             self.service = kwargs.get('service', None)
@@ -269,6 +275,8 @@ class AWS4Auth(AuthBase):
                 raise TypeError('region must be provided as keyword argument when using refreshable_credentials')
             self.date = kwargs.get('date', None)
             self.default_include_headers.add('x-amz-security-token')
+            if self.refresh_credentials_when_needed and not callable(getattr(self.refreshable_credentials, 'refresh_needed', None)):
+                raise TypeError(f'credentials acquired via {self.refreshable_credentials.method} which does not support refresh when needed')
         else:
             l = len(args)
             if l not in [2, 4, 5]:
@@ -372,8 +380,10 @@ class AWS4Auth(AuthBase):
 
         """
         if self.refreshable_credentials:
+            if not self.refresh_credentials_when_needed or self.refreshable_credentials.refresh_needed():
             # generate per-request static credentials
-            self.refresh_credentials()
+            # alternatively generate only when needed if self.refresh_credentials_when_needed is True
+                self.refresh_credentials()
         # check request date matches scope date
         req_date = self.get_request_date(req)
         if req_date is None:
