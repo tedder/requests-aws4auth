@@ -1189,6 +1189,57 @@ class AWS4Auth_HostHeaderMatchesWire_Test(unittest.TestCase):
         req._prepare({})
         self.assertIn('host', req.headers)
 
+    def test_redirect_to_another_host_sends_that_hosts_header(self):
+        """
+        The auth handler must not leave a Host header on the request. requests
+        drops Authorization when it follows a redirect to a different host,
+        but it copies every other header, so a Host set here would be sent to
+        the redirect target unchanged. An earlier version of the #79 fix did
+        exactly that.
+
+        """
+        import threading
+        import http.server
+
+        received = []
+
+        class Target(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                received.append(self.headers.get('Host'))
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'ok')
+
+            def log_message(self, *args):
+                pass
+
+        target = http.server.HTTPServer(('127.0.0.1', 0), Target)
+        target_host = 'localhost:{}'.format(target.server_address[1])
+
+        class Redirector(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(307)
+                self.send_header('Location',
+                                 'http://{}/'.format(target_host))
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        redirector = http.server.HTTPServer(('127.0.0.1', 0), Redirector)
+        servers = (target, redirector)
+        for server in servers:
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            url = 'http://127.0.0.1:{}/'.format(redirector.server_address[1])
+            auth = AWS4Auth('id', 'secret', 'us-east-1', 's3')
+            requests.get(url, auth=auth)
+            self.assertEqual(received, [target_host])
+        finally:
+            for server in servers:
+                server.shutdown()
+                server.server_close()
+
 
 class AWS4Auth_GetCanonicalRequest_Test(unittest.TestCase):
 
