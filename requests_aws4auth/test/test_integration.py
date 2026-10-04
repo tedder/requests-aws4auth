@@ -14,20 +14,27 @@ they run; leave it unset and they skip.
 
 MinIO:
 
-    docker run -d --rm -p 9111:9000 \
+    docker run -d --rm -p 9111:9000 --tmpfs /data:uid=65532,gid=65532 \
       -e MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE \
       -e MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
-      minio/minio server /data
+      cgr.dev/chainguard/minio server /data
     AWS4_TEST_S3_ENDPOINT=http://127.0.0.1:9111 python -m unittest \
       requests_aws4auth.test.test_integration
 
-RadosGW (Ceph), the server from #79:
+MinIO no longer publishes images; that one is Chainguard's build from source.
+It needs the tmpfs because, unlike upstream's, it does not declare /data a
+volume.
+
+RadosGW (Ceph), the server from #79. The demo entrypoint seds the secret key
+into a config file, so it must not contain slashes; set
+AWS4_TEST_S3_ACCESS_KEY and AWS4_TEST_S3_SECRET_KEY to match. Add
+--platform linux/amd64 on Apple Silicon.
 
     docker run -d --rm -p 7480:8080 \
       -e CEPH_DAEMON=demo -e RGW_NAME=localhost -e MON_IP=127.0.0.1 \
       -e CEPH_PUBLIC_NETWORK=0.0.0.0/0 -e CEPH_DEMO_UID=demo \
-      -e CEPH_DEMO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE \
-      -e CEPH_DEMO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+      -e CEPH_DEMO_ACCESS_KEY=demoaccesskey123456 \
+      -e CEPH_DEMO_SECRET_KEY=demosecretkey1234567890abcdefghijklmnop \
       quay.io/ceph/demo:latest-reef
 
 The tests assert only that the server does not reject us with
