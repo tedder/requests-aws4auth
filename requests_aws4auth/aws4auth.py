@@ -401,13 +401,6 @@ class AWS4Auth(AuthBase):
         req.headers['x-amz-content-sha256'] = content_hash.hexdigest()
         if self.session_token:
             req.headers['x-amz-security-token'] = self.session_token
-        # Pin the Host header rather than leaving it to be generated at send
-        # time. Signing a value the client then disagrees with is what caused
-        # #34/#65/#79; setting it here makes the signed value and the sent
-        # value the same string by construction.
-        if 'host' not in req.headers:
-            req.headers['host'] = self.get_host_header(req.url)
-
         # generate signature
         result = self.get_canonical_headers(req, self.include_hdrs)
         cano_headers, signed_headers = result
