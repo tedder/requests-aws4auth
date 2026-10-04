@@ -70,11 +70,16 @@ jobs:
 
     - name: Start MinIO on a non-default port
       if: matrix.server == 'minio'
+      # MinIO no longer publishes images (minio/minio and quay.io/minio/minio
+      # are gone); Chainguard builds one from source. Unlike upstream it does
+      # not declare /data as a volume, so give it a tmpfs or MinIO fails with
+      # "Rename across devices not allowed" on the overlay filesystem.
       run: |
         docker run -d --rm --name s3srv -p ${{ matrix.port }}:9000 \
+          --tmpfs /data:uid=65532,gid=65532 \
           -e MINIO_ROOT_USER=demoaccesskey123456 \
           -e MINIO_ROOT_PASSWORD=demosecretkey1234567890abcdefghijklmnop \
-          minio/minio server /data
+          cgr.dev/chainguard/minio server /data
 
     - name: Start RadosGW on port 7480
       if: matrix.server == 'radosgw'
