@@ -1,3 +1,21 @@
+1.4.0 (2026-10-09)
+=========
+
+**Bugfixes**
+
+- Sign the Host header that is actually sent. The port is now kept unless it is the default for the
+  scheme (80 for http, 443 for https), fixing `SignatureDoesNotMatch` on non-default ports with
+  `requests`, #79 #34. This re-applies the fix from #63, which 1.2.2 reverted.
+- IPv6 literal hosts such as `https://[::1]` are signed correctly; previously the host was signed as `[`.
+- Credentials embedded in the URL (`https://user:pass@host`) are no longer signed as the host.
+
+**Changes**
+
+- Fix the inverted assertion in the non-standard port test from #68.
+- Integration tests against MinIO and RadosGW on non-default ports, run in CI.
+- Add Python 3.13 and 3.14 classifiers.
+
+
 1.3.2 (2026-05-01)
 =========
 
