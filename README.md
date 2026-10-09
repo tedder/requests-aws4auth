@@ -257,13 +257,13 @@ docker run -v `pwd`:/opt/app/ -v ~/.pypirc:/root/.pypirc  -it python:3.12 /bin/b
 
 prep:
 ```
-python3 -m pip install --user --upgrade setuptools wheel testresources twine
+python3 -m pip install --user --upgrade build twine
 ```
 
 build and release, creds in `~/.pypirc`:
 ```
 rm -f dist/*; \
-python3 setup.py sdist bdist_wheel && \
+python3 -m build && \
 python3 -m twine upload --repository testpypi dist/* && \
 python3 -m twine upload --repository pypi dist/*
 ```
