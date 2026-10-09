@@ -1,3 +1,14 @@
+Unreleased
+=========
+
+**Changes**
+
+- Require Python 3.10 or newer (`python_requires=">=3.10"`); test 3.10 through 3.15 in CI.
+- **Python 3.10 reached end-of-life on 2026-10-01 and support will be dropped in an upcoming release.**
+- Build with `python -m build` (adds `pyproject.toml`) and declare the license as an SPDX
+  expression (`License-Expression: MIT`).
+
+
 1.4.0 (2026-10-09)
 =========
 
